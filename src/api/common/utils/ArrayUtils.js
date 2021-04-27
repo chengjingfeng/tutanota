@@ -166,6 +166,10 @@ export function firstThrow<T>(array: $ReadOnlyArray<T>): T {
 	return array[0]
 }
 
+export function first<T>(array: $ReadOnlyArray<T>): T | null {
+	return array[0] || null
+}
+
 export function findLast<T>(array: Array<T>, predicate: (T) => boolean): ?T {
 	const index = findLastIndex(array, predicate)
 	if (index !== -1) {

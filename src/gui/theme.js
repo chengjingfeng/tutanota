@@ -309,6 +309,7 @@ class ThemeManager {
 			import("dompurify").then((dompurify) => {
 				nonNullTheme.logo = dompurify.default.sanitize(logo)
 				this.setThemeId("custom", permanent) // let it copy attributes in .map() listener
+				deviceConfig.setCustomTheme(nonNullTheme)
 				m.redraw()
 			})
 		}

@@ -227,6 +227,7 @@ export class LoginViewController implements ILoginViewController {
 				import("../native/common/FileApp")
 					.then(({fileApp}) => fileApp.clearFileData())
 					.catch((e) => console.log("Failed to clean file data", e))
+				return this._maybeSetCustomTheme()
 			}
 		})
 			.then(() => {
@@ -335,5 +336,19 @@ export class LoginViewController implements ILoginViewController {
 		return worker.initialized
 		             .then(() => import("../subscription/UpgradeSubscriptionWizard")
 			             .then((wizard) => wizard.loadSignupWizard()))
+	}
+
+	_maybeSetCustomTheme(): Promise<*> {
+		return logins.getUserController().loadWhitelabelConfig().then(config => {
+			if (config && config.jsonTheme) {
+				themeManager.updateCustomTheme(JSON.parse(config.jsonTheme))
+			} else if (deviceConfig.getTheme() === 'custom') {
+				// When logging in to customer without whitelabel from a client that previously had a whitelabel accounts logged in
+				// then we reset the theme (this is probably a very uncommon case)
+				themeManager.setThemeId('light')
+				deviceConfig.setTheme('light')
+				m.redraw()
+			}
+		})
 	}
 }

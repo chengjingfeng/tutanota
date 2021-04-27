@@ -87,6 +87,10 @@ export class LoginView {
 			this.permitAutoLogin = true
 		}
 
+		if (deviceConfig && deviceConfig.getTheme() === 'custom') {
+			themeManager.updateCustomTheme(JSON.parse(deviceConfig.getCustomTheme()))
+		}
+
 		let bottomMargin = 0
 		const keyboardListener = (keyboardSize) => {
 			bottomMargin = keyboardSize

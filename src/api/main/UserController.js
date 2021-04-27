@@ -1,7 +1,7 @@
 // @flow
 import {AccountType, GroupType, OperationType} from "../common/TutanotaConstants"
 import {load, loadRoot, setup} from "./Entity"
-import {downcast, neverNull} from "../common/utils/Utils"
+import {downcast, mapNullable, neverNull} from "../common/utils/Utils"
 import type {Customer} from "../entities/sys/Customer"
 import {CustomerTypeRef} from "../entities/sys/Customer"
 import type {User} from "../entities/sys/User"
@@ -28,6 +28,9 @@ import {locator} from "./MainLocator"
 import type {AccountingInfo} from "../entities/sys/AccountingInfo"
 import type {CustomerInfo} from "../entities/sys/CustomerInfo"
 import {isSameId} from "../common/utils/EntityUtils";
+import type {WhitelabelConfig} from "../entities/sys/WhitelabelConfig"
+import {WhitelabelConfigTypeRef} from "../entities/sys/WhitelabelConfig"
+import {first} from "../common/utils/ArrayUtils"
 
 assertMainOrNode()
 
@@ -70,6 +73,8 @@ export interface IUserController {
 	entityEventsReceived($ReadOnlyArray<EntityUpdateData>, eventOwnerGroupId: Id): Promise<void>;
 
 	deleteSession(sync: boolean): Promise<void>;
+
+	loadWhitelabelConfig(): Promise<?WhitelabelConfig>;
 }
 
 export class UserController implements IUserController {
@@ -256,6 +261,17 @@ export class UserController implements IUserController {
 				xhr.send()
 			}
 		})
+	}
+
+	loadWhitelabelConfig(): Promise<?WhitelabelConfig> {
+
+		// The model allows for multiple domainInfos to have whitelabel configs
+		// but in reality on the server only a single custom configuration is allowed
+		// therefore the result of the filtering all domainInfos with no whitelabelConfig
+		// can only be an array of length 0 or 1
+		return this.loadCustomerInfo()
+		           .then(customerInfo => first(customerInfo.domainInfos.map(domainInfo => domainInfo.whitelabelConfig).filter(Boolean)))
+		           .then(configId => mapNullable(configId, id => locator.entityClient.load(WhitelabelConfigTypeRef, id)))
 	}
 }
 
