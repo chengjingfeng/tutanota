@@ -1,7 +1,7 @@
 //@flow
 import m from "mithril"
 import {assertMainOrNodeBoot} from "../api/common/Env"
-import {neverNull} from "../api/common/utils/Utils"
+import {neverNull, typedValues} from "../api/common/utils/Utils"
 import {addAll, removeAll} from "../api/common/utils/ArrayUtils"
 import {client} from "./ClientDetector"
 import type {TranslationKey} from "./LanguageViewModel"
@@ -84,7 +84,7 @@ export function focusNext(dom: HTMLElement): boolean {
 }
 
 class KeyManager {
-	_shortcuts: Shortcut[];
+	_shortcuts: Array<{id: string, shortcut: Shortcut}>;
 	_keyToShortcut: {[id: string]: Shortcut};
 	_modalShortcuts: Shortcut[]; // override for _shortcuts: If a modal is visible, only modal-shortcuts should be active
 	_keyToModalShortcut: {[id: string]: Shortcut};
@@ -98,7 +98,7 @@ class KeyManager {
 			help: "showHelp_action"
 		}
 		let helpId = this._createKeyIdentifier(helpShortcut.key.code)
-		this._shortcuts = [helpShortcut]
+		this._shortcuts = [{id: helpId, shortcut: helpShortcut}]
 		this._modalShortcuts = [helpShortcut]
 		this._keyToShortcut = {}
 		this._keyToModalShortcut = {}
@@ -149,16 +149,15 @@ class KeyManager {
 				       return
 			       }
 			       let shortcuts = ((this._modalShortcuts.length
-				       > 1) ? this._modalShortcuts : this._shortcuts).concat(this._desktopShortcuts) // we do not want to show a dialog with the shortcuts of the help dialog
+				       > 1) ? this._modalShortcuts : this._shortcuts.map(s => s.shortcut)).concat(this._desktopShortcuts) // we do not want to show a dialog with the shortcuts of the help dialog
 			       let textFieldAttrs = shortcuts.filter(shortcut => shortcut.enabled == null || shortcut.enabled())
-			                                     .map(shortcut => {
-					                                     return {
-						                                     label: () => this._getShortcutName(shortcut),
-						                                     value: stream(lang.get(shortcut.help)),
-						                                     disabled: true
-					                                     }
-				                                     }
-			                                     )
+			                                 .map(shortcut => {
+				                                 return {
+					                                 label: () => this._getShortcutName(shortcut),
+					                                 value: stream(lang.get(shortcut.help)),
+					                                 disabled: true
+				                                 }
+			                                 })
 			       this._helpDialog = Dialog.largeDialog({
 				       left: [{label: 'close_alt', click: () => neverNull(this._helpDialog).close(), type: ButtonType.Secondary}],
 				       middle: () => lang.get("keyboardShortcuts_title")
@@ -176,17 +175,22 @@ class KeyManager {
 
 	registerShortcuts(shortcuts: Shortcut[]) {
 		Keys.META.code = (client.browser === BrowserType.FIREFOX ? 224 : 91)
-		addAll(this._shortcuts, shortcuts)
 		for (let s of shortcuts) {
 			let id = this._createKeyIdentifier(s.key.code, s.ctrl, s.alt, s.shift, s.meta)
+			this._shortcuts.push({id: id, shortcut: s})
 			this._keyToShortcut[id] = s
 		}
 	}
 
 	unregisterShortcuts(shortcuts: Shortcut[]) {
-		removeAll(this._shortcuts, shortcuts)
 		for (let s of shortcuts) {
 			let id = this._createKeyIdentifier(s.key.code, s.ctrl, s.alt, s.shift, s.meta)
+			this._shortcuts.forEach(s => {
+				if (s.id === id) {
+					let i = this._shortcuts.indexOf(s)
+					this._shortcuts.splice(i, 1)
+				}
+			})
 			delete this._keyToShortcut[id]
 		}
 	}
