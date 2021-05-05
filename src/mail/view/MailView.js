@@ -239,7 +239,6 @@ export class MailView implements CurrentView {
 				},
 				help: "scrollToBottom_action"
 			},
-		// ].concat(listSelectionKeyboardShortcuts(() => this.mailList.list)).concat([
 			{
 				key: Keys.N,
 				exec: () => (this._showNewMailDialog().catch(PermissionError, noOp): any),
