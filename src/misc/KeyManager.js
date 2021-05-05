@@ -2,7 +2,7 @@
 import m from "mithril"
 import {assertMainOrNodeBoot} from "../api/common/Env"
 import {neverNull, typedValues} from "../api/common/utils/Utils"
-import {addAll, removeAll} from "../api/common/utils/ArrayUtils"
+import {addAll, findAllAndRemove, removeAll} from "../api/common/utils/ArrayUtils"
 import {client} from "./ClientDetector"
 import type {TranslationKey} from "./LanguageViewModel"
 import {lang} from "./LanguageViewModel"
@@ -185,12 +185,7 @@ class KeyManager {
 	unregisterShortcuts(shortcuts: Shortcut[]) {
 		for (let s of shortcuts) {
 			let id = this._createKeyIdentifier(s.key.code, s.ctrl, s.alt, s.shift, s.meta)
-			this._shortcuts.forEach(s => {
-				if (s.id === id) {
-					let i = this._shortcuts.indexOf(s)
-					this._shortcuts.splice(i, 1)
-				}
-			})
+			findAllAndRemove(this._shortcuts, (s) => s.id === id)
 			delete this._keyToShortcut[id]
 		}
 	}
