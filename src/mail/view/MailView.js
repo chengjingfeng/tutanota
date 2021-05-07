@@ -53,7 +53,7 @@ import {MAIL_PREFIX, navButtonRoutes, throttleRoute} from "../../misc/RouteChang
 import {attachDropdown, DropdownN} from "../../gui/base/DropdownN"
 import {MailFolderRow} from "./MailFolderRow"
 import {styles} from "../../gui/styles"
-import {size} from "../../gui/size"
+import {px, size} from "../../gui/size"
 import {FolderColumnView} from "../../gui/base/FolderColumnView"
 import {modal} from "../../gui/base/Modal"
 import {DomRectReadOnlyPolyfilled} from "../../gui/base/Dropdown"
@@ -65,6 +65,8 @@ import {getListId, isSameId} from "../../api/common/utils/EntityUtils"
 import {isNewMailActionAvailable} from "../../gui/nav/NavFunctions"
 import {listSelectionKeyboardShortcuts} from "../../gui/base/List"
 import {SidebarSection} from "../../gui/SidebarSection"
+import {windowFacade} from "../../misc/WindowFacade"
+import {MinimizedMailBar} from "./MinimizedMailBar"
 
 assertMainOrNode()
 
@@ -151,37 +153,43 @@ export class MailView implements CurrentView {
 
 		this.viewSlider = new ViewSlider([this.folderColumn, this.listColumn, this.mailColumn], "MailView")
 
-
 		this.view = (): VirtualElement => {
 			return m("#mail.main-view", {
-					ondragover: (ev) => {
-						// do not check the datatransfer here because it is not always filled, e.g. in Safari
-						ev.stopPropagation()
-						ev.preventDefault()
-					},
-					ondrop: (ev) => {
-						if (isNewMailActionAvailable() && ev.dataTransfer.files && ev.dataTransfer.files.length > 0) {
-							Promise
-								.all([
-									this._getMailboxDetails(),
-									fileController.readLocalFiles(ev.dataTransfer.files),
-									import("../signature/Signature"),
-									import("../editor/MailEditor"),
-								])
-								.then(([mailbox, dataFiles, {appendEmailSignature}, {newMailEditorFromTemplate}]) => {
-									newMailEditorFromTemplate(mailbox, {}, "", appendEmailSignature("", logins.getUserController().props), dataFiles).then(dialog => dialog.show())
-								})
-								.catch(PermissionError, noOp)
-								.catch(UserError, showUserError)
-						}
-						// prevent in any case because firefox tries to open
-						// dataTransfer as a URL otherwise.
-						ev.stopPropagation()
-						ev.preventDefault()
-					}
+				ondragover: (ev) => {
+					// do not check the datatransfer here because it is not always filled, e.g. in Safari
+					ev.stopPropagation()
+					ev.preventDefault()
 				},
-				m(this.viewSlider)
-			)
+				ondrop: (ev) => {
+					if (isNewMailActionAvailable() && ev.dataTransfer.files && ev.dataTransfer.files.length > 0) {
+						Promise
+							.all([
+								this._getMailboxDetails(),
+								fileController.readLocalFiles(ev.dataTransfer.files),
+								import("../signature/Signature"),
+								import("../editor/MailEditor"),
+							])
+							.then(([mailbox, dataFiles, {appendEmailSignature}, {newMailEditorFromTemplate}]) => {
+								newMailEditorFromTemplate(mailbox, {}, "", appendEmailSignature("", logins.getUserController().props), dataFiles).then(dialog => dialog.show())
+							})
+							.catch(PermissionError, noOp)
+							.catch(UserError, showUserError)
+					}
+					// prevent in any case because firefox tries to open
+					// dataTransfer as a URL otherwise.
+					ev.stopPropagation()
+					ev.preventDefault()
+				}
+			}, [
+				m(this.viewSlider),
+				locator.minimizedMailModel.getMinimizedEditors().length
+					? m(MinimizedMailBar, {
+						windowFacade: windowFacade,
+						minimizedMailModel: locator.minimizedMailModel
+					})
+					: null
+
+			])
 		}
 
 		this._setupShortcuts()
@@ -193,19 +201,42 @@ export class MailView implements CurrentView {
 		})
 	}
 
+	// renders a dropdown when clicking 'new mail' button, iff mails have been minimized on mobile
+	renderMinimizedEditorsDropdown(): Array<ButtonAttrs> {
+		let buttonAttrs = [
+			{
+				label: "newMail_action",
+				click: () => this._showNewMailDialog().catch(PermissionError, noOp),
+				type: ButtonType.Dropdown
+			}
+		]
+		locator.minimizedMailModel.getMinimizedEditors().map(editor => {
+			buttonAttrs.push({
+				label: () => editor.sendMailModel.getSubject() !== "" ? editor.sendMailModel.getSubject() : lang.get("openDraft_label"),
+				click: () => locator.minimizedMailModel.reopenMinimizedEditor(editor),
+				type: ButtonType.Dropdown
+			})
+		})
+		return buttonAttrs
+	}
+
+
 	getViewSlider(): ?IViewSlider {
 		return this.viewSlider
 	}
 
 	headerRightView(): Children {
-		return isNewMailActionAvailable()
-			? m(ButtonN, {
+		const openMailButtonAttrs = attachDropdown({
 				label: "newMail_action",
 				click: () => this._showNewMailDialog().catch(PermissionError, noOp),
 				type: ButtonType.Action,
 				icon: () => Icons.PencilSquare,
-				colors: ButtonColors.Header,
-			})
+				colors: ButtonColors.Header
+			}, () => this.renderMinimizedEditorsDropdown(), () => locator.minimizedMailModel.getMinimizedEditors().length > 0, 250
+		)
+
+		return isNewMailActionAvailable()
+			? m(ButtonN, openMailButtonAttrs)
 			: null
 	}
 
@@ -793,5 +824,6 @@ export class MailView implements CurrentView {
 			})
 			: null
 	}
+
 }
 

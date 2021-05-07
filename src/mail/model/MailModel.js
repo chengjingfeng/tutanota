@@ -332,4 +332,14 @@ export class MailModel {
 	isFinalDelete(folder: ?MailFolder): boolean {
 		return folder != null && (folder.folderType === MailFolderType.TRASH || folder.folderType === MailFolderType.SPAM)
 	}
+
+	getRecipientKeyData(mailAddress: string): Promise<?PublicKeyReturn> {
+		return this._worker.serviceRequest(
+			SysService.PublicKeyService,
+			HttpMethod.GET,
+			createPublicKeyData({mailAddress}),
+			PublicKeyReturnTypeRef
+		).catch(NotFoundError, () => null)
+	}
+
 }

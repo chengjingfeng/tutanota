@@ -18,7 +18,7 @@ import {FileNotFoundError} from "../../api/common/error/FileNotFoundError"
 import {PreconditionFailedError} from "../../api/common/error/RestError"
 import type {DialogHeaderBarAttrs} from "../../gui/base/DialogHeaderBar"
 import type {ButtonAttrs} from "../../gui/base/ButtonN"
-import {ButtonN, ButtonType} from "../../gui/base/ButtonN"
+import {ButtonColors, ButtonN, ButtonType} from "../../gui/base/ButtonN"
 import {attachDropdown, createDropdown} from "../../gui/base/DropdownN"
 import {fileController} from "../../file/FileController"
 import {RichTextToolbar} from "../../gui/base/RichTextToolbar"
@@ -106,7 +106,6 @@ export class MailEditor implements MComponent<MailEditorAttrs> {
 	openKnowledgeBaseButtonAttrs: ?ButtonAttrs
 
 	constructor(vnode: Vnode<MailEditorAttrs>) {
-
 		this.objectUrls = []
 		this.inlineImageElements = []
 		this.mentionedInlineImages = []
@@ -391,9 +390,7 @@ export class MailEditor implements MComponent<MailEditorAttrs> {
 
 		return m("#mail-editor.full-height.text.touch-callout", {
 			onremove: vnode => {
-				model.dispose()
 				this.objectUrls.forEach((url) => URL.revokeObjectURL(url))
-				if (this.templateModel) this.templateModel.dispose()
 			},
 			onclick: (e) => {
 				if (e.target === this.editor.getDOM()) {
@@ -401,7 +398,7 @@ export class MailEditor implements MComponent<MailEditorAttrs> {
 				}
 			},
 			ondragover: (ev) => {
-				// do not check the datatransfer here because it is not always filled, e.g. in Safari
+				// do not check the data transfer here because it is not always filled, e.g. in Safari
 				ev.stopPropagation()
 				ev.preventDefault()
 			},
@@ -499,8 +496,8 @@ function createMailEditorDialog(model: SendMailModel, blockExternalContent: bool
 	let mailEditorAttrs: MailEditorAttrs
 	let domCloseButton: HTMLElement
 
-	const save = () => {
-		return model.saveDraft(true, MailMethod.NONE, showProgressDialog)
+	const save = (showProgress: boolean = true) => {
+	 	return model.saveDraft(true, MailMethod.NONE, showProgress ? showProgressDialog : () => Promise.resolve())
 		            .catch(UserError, err => Dialog.error(() => err.message))
 		            .catch(FileNotFoundError, () => Dialog.error("couldNotAttachFile_msg"))
 		            .catch(PreconditionFailedError, () => Dialog.error("operationStillActive_msg"))
@@ -511,7 +508,12 @@ function createMailEditorDialog(model: SendMailModel, blockExternalContent: bool
 				MailMethod.NONE,
 				Dialog.confirm,
 				showProgressDialog)
-			     .then(success => {if (success) dialog.close() })
+			     .then(success => {
+			     	if (success) {
+				        dispose()
+				        dialog.close()
+			        }
+			     })
 			     .catch(UserError, (err) => Dialog.error(() => err.message))
 		} catch (e) {
 			Dialog.error(() => e.message)
@@ -519,45 +521,77 @@ function createMailEditorDialog(model: SendMailModel, blockExternalContent: bool
 
 	}
 
+	const dispose = () => {
+		model.dispose()
+		if (templatePopupModel) templatePopupModel.dispose()
+	}
+
+	const minimize = () => {
+		save(false)
+		locator.minimizedMailModel.minimize(dialog, model, dispose)
+		dialog.close()
+	}
+
 	const closeButtonAttrs = attachDropdown({
 			label: "close_alt",
-			click: () => dialog.close(),
+			click: () => {
+				dispose()
+				dialog.close()
+			},
 			type: ButtonType.Secondary,
 			oncreate: vnode => domCloseButton = vnode.dom
 		},
-		() => [
+		() => closeButtonActions(), () => model.hasMailChanged(), 250
+	)
+
+	const minimizeButtonAttrs: ButtonAttrs = {
+		label: "minimize_action",
+		click: () => minimize(),
+		type: ButtonType.Secondary,
+	}
+
+	const closeButtonActions = () => {
+		let buttons = [
 			{
 				label: "discardChanges_action",
 				click: () => dialog.close(),
 				type: ButtonType.Dropdown,
-			},
-			{
-				label: "saveDraft_action",
-				click: () => { save().then(() => dialog.close()) },
-				type: ButtonType.Dropdown,
 			}
-		], () => model.hasMailChanged(), 250
-	)
+		]
+		if (styles.isUsingBottomNavigation()) {
+			buttons.push({
+				label: "minimize_action",
+				click: () => minimize(),
+				type: ButtonType.Dropdown,
+			})
+		}
+		buttons.push({
+			label: "saveDraft_action",
+			click: () => { save().then(() => dialog.close()) },
+			type: ButtonType.Dropdown,
+		})
+		return buttons
+	}
 
-	let windowCloseUnsubscribe = () => {}
+	let windowCloseUnsubscribe = () => false
 	const headerBarAttrs: DialogHeaderBarAttrs = {
-		left: [closeButtonAttrs],
+		left: styles.isUsingBottomNavigation() ? [closeButtonAttrs] : [closeButtonAttrs, minimizeButtonAttrs],
 		right: [
 			{
 				label: "send_action",
 				click: send,
-				type: ButtonType.Primary
+				type: ButtonType.Primary,
 			}
 		],
 		middle: () => conversationTypeString(model.getConversationType()),
 		create: () => {
 			if (isBrowser()) {
 				// Have a simple listener on browser, so their browser will make the user ask if they are sure they want to close when closing the tab/window
-				windowCloseUnsubscribe = windowFacade.addWindowCloseListener(() => {})
+				windowCloseUnsubscribe = windowFacade.addWindowCloseListener(() => true)
 			} else if (isDesktop()) {
 				// Simulate clicking the Close button when on the desktop so they can see they can save a draft rather than completely closing it
 				windowCloseUnsubscribe = windowFacade.addWindowCloseListener(() => {
-					closeButtonAttrs.click(newMouseEvent(), domCloseButton)
+					return true
 				})
 			}
 		},
@@ -608,18 +642,20 @@ function createMailEditorDialog(model: SendMailModel, blockExternalContent: bool
 		{key: Keys.ESC, exec() { closeButtonAttrs.click(newMouseEvent(), domCloseButton) }, help: "close_alt"},
 		{key: Keys.S, ctrl: true, exec: () => { save() }, help: "save_action"},
 		{key: Keys.S, ctrl: true, shift: true, exec: send, help: "send_action"},
+		{key: Keys.M, ctrl: true, exec: () => minimize(), help: "minimize_action"}
 		{key: Keys.RETURN, ctrl: true, exec: send, help: "send_action"}
 	]
 
 	dialog = Dialog.largeDialogN(headerBarAttrs, MailEditor, mailEditorAttrs,)
-	dialog.setCloseHandler(() => closeButtonAttrs.click(newMouseEvent(), domCloseButton))
+	dialog.setCloseHandler(() => {
+		closeButtonAttrs.click(newMouseEvent(), domCloseButton)
+	})
 	for (let shortcut of shortcuts) {
 		dialog.addShortcut(shortcut)
 	}
 
 	return dialog
 }
-
 
 /**
  * open a MailEditor
