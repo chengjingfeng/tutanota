@@ -2,7 +2,7 @@
 
 import m from "mithril"
 import {WindowFacade} from "../../misc/WindowFacade"
-import {px} from "../../gui/size"
+import {px, size} from "../../gui/size"
 import {MINIMIZED_HEIGHT, MINIMIZED_WIDTH, MinimizedMailElement} from "./MinimizedMailElement"
 import {MinimizedMailModel} from "../model/MinimizedMailModel"
 
@@ -33,8 +33,8 @@ export class MinimizedMailBar implements MComponent<MinimizedMailBarAttrs> {
 				style: {
 					bottom: 0,
 					height: px(MINIMIZED_HEIGHT),
-					width: px((MINIMIZED_WIDTH * MAXIMUM_AMOUNT_OF_MINIMIZED_ELEMENTS) + (8 * MAXIMUM_AMOUNT_OF_MINIMIZED_ELEMENTS)), // we currently allow 5 popups with a margin-right of 8px
-					right: px(20) // 20px to make the bar position more suitable
+					width: px((MINIMIZED_WIDTH * MAXIMUM_AMOUNT_OF_MINIMIZED_ELEMENTS) + (size.vpad_small * MAXIMUM_AMOUNT_OF_MINIMIZED_ELEMENTS)), // we currently allow 5 popups with a margin-right of 8px
+					right: px(size.hpad_medium)
 				}
 			}, this.renderMinimizedEditors()
 		)

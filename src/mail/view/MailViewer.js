@@ -1235,7 +1235,7 @@ export class MailViewer {
 		return checkApprovalStatus(false).then(sendAllowed => {
 			if (sendAllowed) {
 				// check if to be opened draft has already been minimized, iff that is the case, re-open it
-				const minimizedEditor = locator.minimizedMailModel.openMinimizedDraft(this.mail)
+				const minimizedEditor = locator.minimizedMailModel.getEditorForDraft(this.mail)
 				if (minimizedEditor) {
 					locator.minimizedMailModel.reopenMinimizedEditor(minimizedEditor)
 				} else {

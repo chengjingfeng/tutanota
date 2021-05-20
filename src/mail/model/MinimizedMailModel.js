@@ -5,10 +5,10 @@ import type {SendMailModel} from "../editor/SendMailModel"
 import {remove} from "../../api/common/utils/ArrayUtils"
 import type {EntityUpdateData} from "../../api/main/EventController"
 import {EventController, isUpdateForTypeRef} from "../../api/main/EventController"
+import type {Mail} from "../../api/entities/tutanota/Mail"
 import {MailTypeRef} from "../../api/entities/tutanota/Mail"
 import {OperationType} from "../../api/common/TutanotaConstants"
 import {isSameId} from "../../api/common/utils/EntityUtils"
-import type {Mail} from "../../api/entities/tutanota/Mail"
 
 export type MinimizedEditor = {
 	dialog: Dialog,
@@ -73,12 +73,11 @@ export class MinimizedMailModel {
 		return this._minimizedEditors
 	}
 
-	openMinimizedDraft(mail: Mail): ?MinimizedEditor {
-		const minimizedEditor = this.getMinimizedEditors().find((e) => {
+	getEditorForDraft(mail: Mail): ?MinimizedEditor {
+		return this.getMinimizedEditors().find((e) => {
 			const draft = e.sendMailModel.getDraft()
 			return draft ? isSameId(draft._id, mail._id) : null
 		})
-		return minimizedEditor ? minimizedEditor : null
 	}
 
 }

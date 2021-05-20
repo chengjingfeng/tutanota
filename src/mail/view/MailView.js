@@ -201,7 +201,7 @@ export class MailView implements CurrentView {
 		})
 	}
 
-	// renders a dropdown when clicking 'new mail' button, iff mails have been minimized on mobile
+	// returns buttons for the dropdown to be rendered when clicking 'new mail' button, iff mails have been minimized on mobile
 	renderMinimizedEditorsDropdown(): Array<ButtonAttrs> {
 		let buttonAttrs = [
 			{
@@ -219,7 +219,6 @@ export class MailView implements CurrentView {
 		})
 		return buttonAttrs
 	}
-
 
 	getViewSlider(): ?IViewSlider {
 		return this.viewSlider
