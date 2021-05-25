@@ -2,7 +2,8 @@ import options from "commander"
 import fs from "fs-extra"
 import {spawn} from "child_process"
 import flow from "flow-bin"
-import {buildWithServer} from "./buildSrc/BuildServerClient.js"
+import {BuildServerClient} from "./buildSrc/BuildServerClient.js"
+import path from "path"
 import {fetchDictionaries} from "./buildSrc/DictionaryFetcher.js"
 
 let opts
@@ -30,39 +31,41 @@ const flowPromise = new Promise((resolve, reject) => {
 	spawn(flow, ["--quiet"], {stdio: "inherit"}).on("exit", resolve).on("error", reject)
 })
 
-const SOCKET_PATH = "/tmp/buildServer"
-
 runBuild()
 
 function runBuild() {
-	buildWithServer({
-		clean: opts.clean,
-		builder: "./Builder.js",
-		watchFolders: ["src"],
-		socketPath: SOCKET_PATH,
+	const buildServerClient = new BuildServerClient()
+	buildServerClient.buildWithServer({
+		forceRestart: opts.clean,
+		builder: path.resolve("./buildSrc/Builder.js"),
+		watchFolders: opts.watch ? [path.resolve("src")] : null,
 		buildOpts: opts,
+		webRoot: path.resolve('build'),
+		spaRedirect: true,
+		devServerPort: 9001,
+		preserveLogs: true
 	})
-		.then(async () => {
-			const dictPath = "build/dictionaries"
-			if(fs.existsSync(dictPath)) return
-			const {devDependencies} = JSON.parse(await fs.readFile("package.json", "utf8"))
-			return fetchDictionaries(devDependencies.electron, [dictPath])
-		})
-		.then(async () => {
-			console.log("Build finished")
-			if (opts.desktop) {
-				// we don't want to quit here because we want to keep piping output to our stdout.
-				spawn("./start-desktop.sh", {stdio: "inherit"})
-			} else if (!opts.watch) {
-				await flowPromise
-				process.exit(0)
-			}
-		})
-		.catch(async e => {
-			console.error(e)
-			await flowPromise
-			process.exit(1)
-		})
+	                 .then(async () => {
+		                 const dictPath = "build/dictionaries"
+		                 if (fs.existsSync(dictPath)) return
+		                 const {devDependencies} = JSON.parse(await fs.readFile("package.json", "utf8"))
+		                 return fetchDictionaries(devDependencies.electron, [dictPath])
+	                 })
+	                 .then(async () => {
+		                 console.log("Build finished")
+		                 if (opts.desktop) {
+			                 // we don't want to quit here because we want to keep piping output to our stdout.
+			                 spawn("./start-desktop.sh", {stdio: "inherit"})
+		                 } else if (!opts.watch) {
+			                 await flowPromise
+			                 process.exit(0)
+		                 }
+	                 })
+	                 .catch(async e => {
+		                 console.error(e)
+		                 await flowPromise
+		                 process.exit(1)
+	                 })
 }
 
 if (options.clean) {
