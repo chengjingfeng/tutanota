@@ -84,10 +84,9 @@ export function focusNext(dom: HTMLElement): boolean {
 }
 
 class KeyManager {
-	_shortcuts: Array<{id: string, shortcut: Shortcut}>;
-	_keyToShortcut: {[id: string]: Shortcut};
+		_keyToShortcut: Map<string, Shortcut>;
 	_modalShortcuts: Shortcut[]; // override for _shortcuts: If a modal is visible, only modal-shortcuts should be active
-	_keyToModalShortcut: {[id: string]: Shortcut};
+	_keyToModalShortcut: Map<string, Shortcut>;
 	_desktopShortcuts: Shortcut[]
 	_helpDialog: ?any;
 
@@ -98,13 +97,10 @@ class KeyManager {
 			help: "showHelp_action"
 		}
 		let helpId = this._createKeyIdentifier(helpShortcut.key.code)
-		this._shortcuts = [{id: helpId, shortcut: helpShortcut}]
 		this._modalShortcuts = [helpShortcut]
-		this._keyToShortcut = {}
-		this._keyToModalShortcut = {}
+		this._keyToShortcut = new Map([[helpId, helpShortcut]])
+		this._keyToModalShortcut = new Map([[helpId, helpShortcut]]) // override for _shortcuts: If a modal is visible, only modal-shortcuts should be active
 		this._desktopShortcuts = []
-		this._keyToShortcut[helpId] = helpShortcut
-		this._keyToModalShortcut[helpId] = helpShortcut // override for _shortcuts: If a modal is visible, only modal-shortcuts should be active
 
 		if (!window.document.addEventListener) {
 			return
@@ -112,8 +108,10 @@ class KeyManager {
 
 		window.document.addEventListener("keydown", e => {
 			let keyCode = e.which
-			let keysToShortcuts = (this._modalShortcuts.length > 1) ? this._keyToModalShortcut : this._keyToShortcut
-			let shortcut = keysToShortcuts[this._createKeyIdentifier(keyCode, e.ctrlKey, e.altKey, e.shiftKey, e.metaKey)]
+			let keysToShortcuts = (this._modalShortcuts.length > 1)
+				? this._keyToModalShortcut
+				: this._keyToShortcut
+			let shortcut = keysToShortcuts.get(this._createKeyIdentifier(keyCode, e.ctrlKey, e.altKey, e.shiftKey, e.metaKey))
 			if (shortcut != null && (shortcut.enabled == null || shortcut.enabled())) {
 				if (shortcut.exec({
 					keyCode,
@@ -148,16 +146,17 @@ class KeyManager {
 			       if (this._helpDialog && this._helpDialog.visible) {
 				       return
 			       }
-			       let shortcuts = ((this._modalShortcuts.length
-				       > 1) ? this._modalShortcuts : this._shortcuts.map(s => s.shortcut)).concat(this._desktopShortcuts) // we do not want to show a dialog with the shortcuts of the help dialog
+			       let shortcuts = ((this._modalShortcuts.length > 1)
+				       ? this._modalShortcuts
+				       : Array.from(this._keyToShortcut.values()).concat(this._desktopShortcuts)) // we do not want to show a dialog with the shortcuts of the help dialog
 			       let textFieldAttrs = shortcuts.filter(shortcut => shortcut.enabled == null || shortcut.enabled())
-			                                 .map(shortcut => {
-				                                 return {
-					                                 label: () => this._getShortcutName(shortcut),
-					                                 value: stream(lang.get(shortcut.help)),
-					                                 disabled: true
-				                                 }
-			                                 })
+			                                     .map(shortcut => {
+				                                     return {
+					                                     label: () => this._getShortcutName(shortcut),
+					                                     value: stream(lang.get(shortcut.help)),
+					                                     disabled: true
+				                                     }
+			                                     })
 			       this._helpDialog = Dialog.largeDialog({
 				       left: [{label: 'close_alt', click: () => neverNull(this._helpDialog).close(), type: ButtonType.Secondary}],
 				       middle: () => lang.get("keyboardShortcuts_title")
@@ -177,16 +176,14 @@ class KeyManager {
 		Keys.META.code = (client.browser === BrowserType.FIREFOX ? 224 : 91)
 		for (let s of shortcuts) {
 			let id = this._createKeyIdentifier(s.key.code, s.ctrl, s.alt, s.shift, s.meta)
-			this._shortcuts.push({id: id, shortcut: s})
-			this._keyToShortcut[id] = s
+			this._keyToShortcut.set(id, s)
 		}
 	}
 
 	unregisterShortcuts(shortcuts: Shortcut[]) {
 		for (let s of shortcuts) {
 			let id = this._createKeyIdentifier(s.key.code, s.ctrl, s.alt, s.shift, s.meta)
-			findAllAndRemove(this._shortcuts, (s) => s.id === id)
-			delete this._keyToShortcut[id]
+			this._keyToShortcut.delete(id)
 		}
 	}
 
@@ -194,7 +191,7 @@ class KeyManager {
 		addAll(this._modalShortcuts, shortcuts)
 		for (let s of shortcuts) {
 			let id = this._createKeyIdentifier(s.key.code, s.ctrl, s.alt, s.shift, s.meta)
-			this._keyToModalShortcut[id] = s
+			this._keyToModalShortcut.set(id, s)
 		}
 	}
 
@@ -206,7 +203,7 @@ class KeyManager {
 		removeAll(this._modalShortcuts, shortcuts)
 		for (let s of shortcuts) {
 			let id = this._createKeyIdentifier(s.key.code, s.ctrl, s.alt, s.shift, s.meta)
-			delete this._keyToModalShortcut[id]
+			this._keyToModalShortcut.delete(id)
 		}
 	}
 
