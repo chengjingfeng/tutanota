@@ -119,7 +119,6 @@ import {ActionBanner} from "../../gui/base/icons/ActionBanner"
 import type {Link} from "../../misc/HtmlSanitizer"
 import {stringifyFragment} from "../../gui/HtmlUtils"
 import {IndexingNotSupportedError} from "../../api/common/error/IndexingNotSupportedError"
-import {delay} from "../../api/common/utils/PromiseUtils"
 
 assertMainOrNode()
 
