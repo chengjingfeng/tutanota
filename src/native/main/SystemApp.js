@@ -5,6 +5,7 @@ import {uriToFileRef} from "../common/FileApp"
 import {isDesktop} from "../../api/common/Env"
 import type {DesktopConfigEncKeyEnum, DesktopConfigKeyEnum} from "../../desktop/config/ConfigKeys"
 import type {LanguageCode} from "../../misc/LanguageViewModel"
+import type {Theme} from "../../gui/theme"
 
 /**
  * Open the link
@@ -23,8 +24,8 @@ export function reloadNative(queryParameters: string): Promise<void> {
 	return nativeApp.invokeNative(new Request('reload', [queryParameters]))
 }
 
-export function changeColorTheme(theme: string): Promise<void> {
-	return nativeApp.invokeNative(new Request('changeTheme', [theme]))
+export function changeColorTheme(themeId: string, theme: Theme): Promise<void> {
+	return nativeApp.invokeNative(new Request('changeTheme', [themeId, theme]))
 }
 
 export function changeSystemLanguage(language: {code: LanguageCode, languageTag: string}): Promise<void> {

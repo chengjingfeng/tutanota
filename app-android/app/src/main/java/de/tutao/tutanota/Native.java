@@ -2,12 +2,10 @@ package de.tutao.tutanota;
 
 import android.app.NotificationManager;
 import android.content.ClipData;
-import android.content.ContentProvider;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
@@ -38,6 +36,8 @@ import de.tutao.tutanota.alarms.AlarmNotification;
 import de.tutao.tutanota.alarms.AlarmNotificationsManager;
 import de.tutao.tutanota.push.LocalNotificationsFacade;
 import de.tutao.tutanota.push.SseStorage;
+
+import static de.tutao.tutanota.Utils.jsonObjectToMap;
 
 /**
  * Created by mpfau on 4/8/17.
@@ -267,7 +267,9 @@ public final class Native {
 					break;
 				}
 				case "changeTheme":
-					activity.changeTheme(args.getString(0));
+					String themeId = args.getString(0);
+					Map<String, String> theme = jsonObjectToMap(args.getJSONObject(1));
+					activity.changeTheme(themeId, theme);
 					break;
 				case "saveBlob":
 					return files.saveBlob(args.getString(0), args.getString(1));

@@ -40,7 +40,7 @@ import {ButtonType} from "../gui/base/ButtonN"
 import {isNotificationCurrentlyActive, loadOutOfOfficeNotification} from "../api/main/OutOfOfficeNotificationUtils"
 import type {OutOfOfficeNotification} from "../api/entities/tutanota/OutOfOfficeNotification"
 import {showMoreStorageNeededOrderDialog} from "../misc/SubscriptionDialogs"
-import {themeManager} from "../gui/theme"
+import {theme, themeManager} from "../gui/theme"
 
 assertMainOrNode()
 
@@ -67,8 +67,8 @@ export class LoginViewController implements ILoginViewController {
 		if (isApp()) {
 			worker.initialized.then(() => {
 
-				themeManager.themeIdChangedStream.map((theme) => {
-					import("../native/main/SystemApp").then(({changeColorTheme}) => changeColorTheme(theme))
+				themeManager.themeIdChangedStream.map((themeId) => {
+					import("../native/main/SystemApp").then(({changeColorTheme}) => changeColorTheme(themeId, theme))
 				})
 			})
 		}

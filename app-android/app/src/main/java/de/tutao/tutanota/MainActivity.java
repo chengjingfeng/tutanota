@@ -14,10 +14,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.MailTo;
 import android.net.Uri;
 import android.os.AsyncTask;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
@@ -32,7 +33,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
-import androidx.annotation.ColorRes;
+import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresPermission;
@@ -51,6 +52,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,10 +65,13 @@ import de.tutao.tutanota.push.LocalNotificationsFacade;
 import de.tutao.tutanota.push.PushNotificationService;
 import de.tutao.tutanota.push.SseStorage;
 
+import static de.tutao.tutanota.Utils.jsonObjectToMap;
+
 public class MainActivity extends ComponentActivity {
 
 	private static final String TAG = "MainActivity";
-	public static final String THEME_PREF = "theme";
+	public static final String THEME_ID_PREF = "theme";
+	public static final String THEME_OBJECT_PREF = "themeObject";
 	public static final String INVALIDATE_SSE_ACTION = "de.tutao.tutanota.INVALIDATE_SSE";
 	private static Map<Integer, Deferred> requests = new ConcurrentHashMap<>();
 	private static int requestId = 0;
@@ -82,12 +87,30 @@ public class MainActivity extends ComponentActivity {
 	public Native nativeImpl;
 	boolean firstLoaded = false;
 
+	private String colorToHex(@ColorInt int intColor) {
+		return String.format("#%06X", (0xFFFFFF & intColor));
+	}
+
 	@SuppressLint({"SetJavaScriptEnabled", "StaticFieldLeak"})
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		Log.d(TAG, "App started");
-		doChangeTheme(PreferenceManager.getDefaultSharedPreferences(this)
-				.getString(THEME_PREF, "light"));
+
+		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+		String themeId = prefs.getString(THEME_ID_PREF, "light");
+		String themeMapString = prefs.getString(THEME_OBJECT_PREF, null);
+		Map<String, String> themeMap;
+		if (themeMapString == null) {
+			themeMap = new HashMap<>();
+			themeMap.put("content_bg", colorToHex(Color.WHITE));
+		} else {
+			try {
+				themeMap = jsonObjectToMap(new JSONObject(themeMapString));
+			} catch (JSONException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		doChangeTheme(themeId, themeMap);
 
 		AndroidKeyStoreFacade keyStoreFacade = new AndroidKeyStoreFacade(this);
 		sseStorage = new SseStorage(AppDatabase.getDatabase(this, /*allowMainThreadAccess*/false),
@@ -268,14 +291,36 @@ public class MainActivity extends ComponentActivity {
 		webView.saveState(outState);
 	}
 
-	public void changeTheme(String themeName) {
-		runOnUiThread(() -> doChangeTheme(themeName));
+	public void changeTheme(String themeName, Map<String, String> theme) {
+		runOnUiThread(() -> doChangeTheme(themeName, theme));
 	}
 
-	private void doChangeTheme(String themeName) {
+	@ColorInt
+	public static int parseColor(String color) {
+		if (color.charAt(0) != '#') {
+			color = "#" + color;
+		}
+		if (color.length() == 4) {
+			char[] chars = new char[]{
+					'#',
+					color.charAt(1),
+					color.charAt(1),
+					color.charAt(2),
+					color.charAt(2),
+					color.charAt(3),
+					color.charAt(3)
+			};
+			color = new String(chars);
+		}
+		return Color.parseColor(color);
+	}
+
+	private void doChangeTheme(String themeName, Map<String, String> theme) {
+		Log.d(TAG, "changeTheme: " + themeName);
 		boolean isDark = "dark".equals(themeName);
-		@ColorRes int backgroundRes = isDark ? R.color.darkDarkest : R.color.white;
-		getWindow().setBackgroundDrawableResource(backgroundRes);
+		@ColorInt
+		int backgroundColor = parseColor(theme.get("content_bg"));
+		getWindow().setBackgroundDrawable(new ColorDrawable(backgroundColor));
 		View decorView = getWindow().getDecorView();
 
 		if (Utils.atLeastOreo()) {
@@ -299,7 +344,8 @@ public class MainActivity extends ComponentActivity {
 		getWindow().setStatusBarColor(statusBarColorInt);
 		PreferenceManager.getDefaultSharedPreferences(this)
 				.edit()
-				.putString(THEME_PREF, themeName)
+				.putString(THEME_ID_PREF, themeName)
+				.putString(THEME_OBJECT_PREF, new JSONObject(theme).toString())
 				.apply();
 	}
 

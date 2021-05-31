@@ -10,12 +10,17 @@ import android.util.Base64;
 import org.apache.commons.io.IOUtils;
 import org.jdeferred.Deferred;
 import org.jdeferred.impl.DeferredObject;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 
 public class Utils {
@@ -125,6 +130,16 @@ public class Utils {
         return new DeferredObject<D, F, P>()
                 .resolve(result);
     }
+
+	public static Map<String, String> jsonObjectToMap(JSONObject jsonObject) throws JSONException {
+		Map<String, String> map = new HashMap<>();
+		Iterator<String> keys = jsonObject.keys();
+		while (keys.hasNext()) {
+			String key = keys.next();
+			map.put(key, jsonObject.getString(key));
+		}
+		return map;
+	}
 
 }
 
