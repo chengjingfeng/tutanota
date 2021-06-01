@@ -85,6 +85,7 @@ alarmManager:(TUTAlarmManager *)alarmManager
 	_webView.scrollView.bounces = false;
 	_webView.scrollView.scrollEnabled = NO;
 	_webView.scrollView.delegate = self;
+  _webView.opaque = NO;
 	if (@available(iOS 11.0, *)) {
   		_webView.scrollView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
 	}
@@ -108,6 +109,11 @@ alarmManager:(TUTAlarmManager *)alarmManager
 	method_setImplementation(method, newImp);
 }
 
+- (void)applyTheme:(NSDictionary<NSString *,NSString *> *)theme {
+  let contentBg = [[UIColor alloc] initWithHex:theme[@"content_bg"]];
+  self.view.backgroundColor = contentBg;
+}
+
 - (void)viewDidLoad {
 	[super viewDidLoad];
 	[self.view addSubview:_webView];
@@ -116,7 +122,9 @@ alarmManager:(TUTAlarmManager *)alarmManager
 	[_webView.topAnchor constraintEqualToAnchor:self.view.topAnchor].active = YES;
 	[_webView.rightAnchor constraintEqualToAnchor:self.view.rightAnchor].active = YES;
 	[_webView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor].active = YES;
-    
+  let theme = [_userPreferences theme];
+  [self applyTheme:theme];
+  
     if ([self.appDelegate.alarmManager hasNotificationTTLExpired]) {
         [self.appDelegate.alarmManager resetStoredState];
     } else {
@@ -191,9 +199,11 @@ alarmManager:(TUTAlarmManager *)alarmManager
 	} else if ([@"getMimeType" isEqualToString:type]) {
 		[_fileUtil getMimeTypeForPath:arguments[0] completion:sendResponseBlock];
 	} else if ([@"changeTheme" isEqualToString:type]) {
-        _darkTheme = [@"dark" isEqual:arguments[0]];
-        [self setNeedsStatusBarAppearanceUpdate];
-		sendResponseBlock(NSNull.null, nil);
+   	[_userPreferences storeTheme:arguments[1]];
+    [self applyTheme: arguments[1]];
+    _darkTheme = [@"dark" isEqual:arguments[0]];
+    [self setNeedsStatusBarAppearanceUpdate];
+    sendResponseBlock(NSNull.null, nil);
 	} else if ([@"aesEncryptFile" isEqualToString:type]) {
 		[_crypto aesEncryptFileWithKey:arguments[0] atPath:arguments[1] completion:sendResponseBlock];
 	} else if ([@"aesDecryptFile" isEqualToString:type]) {
