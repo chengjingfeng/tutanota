@@ -2,7 +2,7 @@ import options from "commander"
 import fs from "fs-extra"
 import {spawn} from "child_process"
 import flow from "flow-bin"
-import {BuildServerClient} from "./buildSrc/BuildServerClient.js"
+import {BuildServerClient} from "@tutao/tutanota-build-tools"
 import path from "path"
 import {fetchDictionaries} from "./buildSrc/DictionaryFetcher.js"
 

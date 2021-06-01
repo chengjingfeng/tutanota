@@ -20,8 +20,9 @@ export async function createBuildServer(options) {
 		throw 'Build directory is required'
 	}
 
+	const dirname = path.dirname(import.meta.url.replace(/^file:\/\//, ''))
 	const args = [
-		path.resolve("./buildSrc/BuildServerStarter.js"),
+		path.join(dirname, "BuildServerStarter.js"),
 		'-p', port,
 		'-d', directory,
 	]
