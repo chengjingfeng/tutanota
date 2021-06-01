@@ -4,7 +4,7 @@ import {client} from "./ClientDetector"
 import type {CalendarViewTypeEnum} from "../calendar/view/CalendarView"
 import {uint8ArrayToBase64} from "../api/common/utils/Encoding"
 import type {LanguageCode} from "./LanguageViewModel"
-import type {ThemeId} from "../gui/theme"
+import type {Theme, ThemeId} from "../gui/theme"
 
 assertMainOrNodeBoot()
 
@@ -25,7 +25,7 @@ export class DeviceConfig {
 	_defaultCalendarView: {[userId: Id]: ?CalendarViewTypeEnum};
 	_hiddenCalendars: {[userId: Id]: Id[]}
 	_signupToken: string;
-	_customTheme: string;
+	_customTheme: Theme;
 
 	/**
 	 * @param config The config to copy from
@@ -39,7 +39,7 @@ export class DeviceConfig {
 		this._credentials = []
 		let loadedConfigString = client.localStorage() ? localStorage.getItem(LocalStorageKey) : null
 		let loadedConfig = loadedConfigString != null ? this._parseConfig(loadedConfigString) : null
-		this._customTheme = (loadedConfig && loadedConfig._customTheme) ? loadedConfig._customTheme : "{}"
+		this._customTheme = (loadedConfig && loadedConfig._customTheme) ? loadedConfig._customTheme : {}
 		this._themeId = defaultThemeId
 		if (loadedConfig) {
 			if (loadedConfig._themeId) {
@@ -171,7 +171,7 @@ export class DeviceConfig {
 		}
 	}
 
-	setCustomTheme(theme: string) {
+	setCustomTheme(theme: Theme) {
 		this._themeId = 'custom'
 		if (this._customTheme !== theme) {
 			this._customTheme = theme
@@ -179,7 +179,7 @@ export class DeviceConfig {
 		}
 	}
 
-	getCustomTheme(): string {
+	getCustomTheme(): Theme {
 		return this._customTheme
 	}
 

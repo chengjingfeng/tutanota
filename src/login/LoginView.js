@@ -88,7 +88,7 @@ export class LoginView {
 		}
 
 		if (deviceConfig && deviceConfig.getTheme() === 'custom') {
-			themeManager.updateCustomTheme(JSON.parse(deviceConfig.getCustomTheme()))
+			themeManager.updateCustomTheme(deviceConfig.getCustomTheme())
 		}
 
 		let bottomMargin = 0

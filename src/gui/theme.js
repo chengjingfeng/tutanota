@@ -258,10 +258,14 @@ class ThemeManager {
 		// see RootHandler::applyWhitelabelFileModifications.
 		if (typeof whitelabelCustomizations !== "undefined" && whitelabelCustomizations && whitelabelCustomizations.theme) {
 			this.updateCustomTheme(whitelabelCustomizations.theme)
-		} else if (this.themeId === "custom") {
-			// if they have a custom theme set but no custom theme exists, we should set them back to light theme
-			this.setThemeId("light")
 		}
+		// TODO
+		// else if (this.themeId === "custom") {
+		// 	if (this.deviceConfig.getCustomTheme()) {
+		// 		// if they have a custom theme set but no custom theme exists, we should set them back to light theme
+		// 		this.setThemeId("light")
+		// 	}
+		// }
 	}
 
 	get themeId(): ThemeId {
@@ -304,7 +308,7 @@ class ThemeManager {
 		const logo = updatedTheme.logo
 		// set no logo until we sanitize it
 		this.customTheme = Object.assign({}, this.getDefaultTheme(), updatedTheme, {logo: ""})
-		const nonNullTheme = this.customTheme
+		const nonNullTheme: Theme = this.customTheme
 		if (logo) {
 			import("dompurify").then((dompurify) => {
 				nonNullTheme.logo = dompurify.default.sanitize(logo)
@@ -312,6 +316,8 @@ class ThemeManager {
 				deviceConfig.setCustomTheme(nonNullTheme)
 				m.redraw()
 			})
+		} else {
+			deviceConfig.setCustomTheme(nonNullTheme)
 		}
 		this.setThemeId('custom', permanent)
 	}

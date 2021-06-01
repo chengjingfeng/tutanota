@@ -124,7 +124,7 @@ public class MainActivity extends ComponentActivity {
 		this.setupPushNotifications();
 
 		webView = new WebView(this);
-		webView.setBackgroundColor(getResources().getColor(android.R.color.transparent));
+		webView.setBackgroundColor(Color.TRANSPARENT);
 		setContentView(webView);
 		final String appUrl = getUrl();
 		if (BuildConfig.DEBUG) {
