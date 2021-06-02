@@ -55,6 +55,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
@@ -65,12 +66,13 @@ import de.tutao.tutanota.push.LocalNotificationsFacade;
 import de.tutao.tutanota.push.PushNotificationService;
 import de.tutao.tutanota.push.SseStorage;
 
+import static de.tutao.tutanota.Utils.colorToHex;
+import static de.tutao.tutanota.Utils.isColorDark;
 import static de.tutao.tutanota.Utils.jsonObjectToMap;
 
 public class MainActivity extends ComponentActivity {
 
 	private static final String TAG = "MainActivity";
-	public static final String THEME_ID_PREF = "theme";
 	public static final String THEME_OBJECT_PREF = "themeObject";
 	public static final String INVALIDATE_SSE_ACTION = "de.tutao.tutanota.INVALIDATE_SSE";
 	private static Map<Integer, Deferred> requests = new ConcurrentHashMap<>();
@@ -87,22 +89,18 @@ public class MainActivity extends ComponentActivity {
 	public Native nativeImpl;
 	boolean firstLoaded = false;
 
-	private String colorToHex(@ColorInt int intColor) {
-		return String.format("#%06X", (0xFFFFFF & intColor));
-	}
-
 	@SuppressLint({"SetJavaScriptEnabled", "StaticFieldLeak"})
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		Log.d(TAG, "App started");
 
 		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String themeId = prefs.getString(THEME_ID_PREF, "light");
 		String themeMapString = prefs.getString(THEME_OBJECT_PREF, null);
 		Map<String, String> themeMap;
 		if (themeMapString == null) {
 			themeMap = new HashMap<>();
 			themeMap.put("content_bg", colorToHex(Color.WHITE));
+			themeMap.put("header_bg", colorToHex(Color.WHITE));
 		} else {
 			try {
 				themeMap = jsonObjectToMap(new JSONObject(themeMapString));
@@ -110,7 +108,7 @@ public class MainActivity extends ComponentActivity {
 				throw new RuntimeException(e);
 			}
 		}
-		doChangeTheme(themeId, themeMap);
+		doChangeTheme(themeMap);
 
 		AndroidKeyStoreFacade keyStoreFacade = new AndroidKeyStoreFacade(this);
 		sseStorage = new SseStorage(AppDatabase.getDatabase(this, /*allowMainThreadAccess*/false),
@@ -291,8 +289,8 @@ public class MainActivity extends ComponentActivity {
 		webView.saveState(outState);
 	}
 
-	public void changeTheme(String themeName, Map<String, String> theme) {
-		runOnUiThread(() -> doChangeTheme(themeName, theme));
+	public void changeTheme(Map<String, String> theme) {
+		runOnUiThread(() -> doChangeTheme(theme));
 	}
 
 	@ColorInt
@@ -315,18 +313,19 @@ public class MainActivity extends ComponentActivity {
 		return Color.parseColor(color);
 	}
 
-	private void doChangeTheme(String themeName, Map<String, String> theme) {
-		Log.d(TAG, "changeTheme: " + themeName);
-		boolean isDark = "dark".equals(themeName);
+	private void doChangeTheme(Map<String, String> theme) {
+		Log.d(TAG, "changeTheme: ");
 		@ColorInt
-		int backgroundColor = parseColor(theme.get("content_bg"));
+		int backgroundColor = parseColor(Objects.requireNonNull(theme.get("content_bg")));
 		getWindow().setBackgroundDrawable(new ColorDrawable(backgroundColor));
 		View decorView = getWindow().getDecorView();
+		@ColorInt
+		int statusBarColor = parseColor(Objects.requireNonNull(theme.get("header_bg")));
+		boolean statusBarDark = isColorDark(statusBarColor);
 
 		if (Utils.atLeastOreo()) {
-			int navbarColor = ContextCompat.getColor(this, isDark ? R.color.darkLighter : R.color.white);
-			getWindow().setNavigationBarColor(navbarColor);
-			decorView.setSystemUiVisibility(isDark ? 0 : View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+			getWindow().setNavigationBarColor(statusBarColor);
+			decorView.setSystemUiVisibility(statusBarDark ? 0 : View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
 		}
 
 		// Changing status bar color
@@ -335,16 +334,13 @@ public class MainActivity extends ComponentActivity {
 		// should be white. So we cannot use white status bar color.
 		// So for Android M and above we alternate between white and dark status bar colors and
 		// we change lightStatusBar flag accordingly.
-		int statusBarColorInt;
-		int uiFlags = isDark
+		int uiFlags = statusBarDark
 				? decorView.getSystemUiVisibility() & ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
 				: decorView.getSystemUiVisibility() | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
 		decorView.setSystemUiVisibility(uiFlags);
-		statusBarColorInt = getResources().getColor(isDark ? R.color.darkLighter : R.color.white, null);
-		getWindow().setStatusBarColor(statusBarColorInt);
+		getWindow().setStatusBarColor(statusBarColor);
 		PreferenceManager.getDefaultSharedPreferences(this)
 				.edit()
-				.putString(THEME_ID_PREF, themeName)
 				.putString(THEME_OBJECT_PREF, new JSONObject(theme).toString())
 				.apply();
 	}

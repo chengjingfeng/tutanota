@@ -269,7 +269,7 @@ public final class Native {
 				case "changeTheme":
 					String themeId = args.getString(0);
 					Map<String, String> theme = jsonObjectToMap(args.getJSONObject(1));
-					activity.changeTheme(themeId, theme);
+					activity.changeTheme(theme);
 					break;
 				case "saveBlob":
 					return files.saveBlob(args.getString(0), args.getString(1));

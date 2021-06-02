@@ -179,7 +179,7 @@ export class DeviceConfig {
 		}
 	}
 
-	getCustomTheme(): Theme {
+	getCustomTheme(): ?Theme {
 		return this._customTheme
 	}
 

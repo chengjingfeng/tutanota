@@ -258,14 +258,12 @@ class ThemeManager {
 		// see RootHandler::applyWhitelabelFileModifications.
 		if (typeof whitelabelCustomizations !== "undefined" && whitelabelCustomizations && whitelabelCustomizations.theme) {
 			this.updateCustomTheme(whitelabelCustomizations.theme)
+		} else if (this.themeId === "custom" && this.deviceConfig.getCustomTheme()) {
+			this.updateCustomTheme(this.deviceConfig.getCustomTheme())
+		} else if (this.themeId === "custom" && !this.deviceConfig.getCustomTheme()) {
+			// if they have a custom theme set but no custom theme exists, we should set them back to light theme
+			this.setThemeId("light")
 		}
-		// TODO
-		// else if (this.themeId === "custom") {
-		// 	if (this.deviceConfig.getCustomTheme()) {
-		// 		// if they have a custom theme set but no custom theme exists, we should set them back to light theme
-		// 		this.setThemeId("light")
-		// 	}
-		// }
 	}
 
 	get themeId(): ThemeId {
