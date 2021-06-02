@@ -69,11 +69,11 @@ NSString *const THEME = @"theme";
     [self putSseInfo:sseInfo];
 }
 
--(void)putSseInfo:(TUTSseInfo *)sseInfo {
+- (void)putSseInfo:(TUTSseInfo *)sseInfo {
     [NSUserDefaults.standardUserDefaults setObject:sseInfo.toDict forKey:SSE_INFO_KEY];
 }
 
--(void)storeAlarms:(NSArray<TUTAlarmNotification *> *)alarmNotifications {
+- (void)storeAlarms:(NSArray<TUTAlarmNotification *> *)alarmNotifications {
     NSMutableArray<NSDictionary *> *notificationsJson = [NSMutableArray new];
     foreach(notification, alarmNotifications) {
         [notificationsJson addObject:notification.jsonDict];
@@ -82,7 +82,7 @@ NSString *const THEME = @"theme";
     [NSUserDefaults.standardUserDefaults setObject:jsonData forKey:ALARMS_KEY];
 }
 
--(NSMutableArray<TUTAlarmNotification *> *)alarms {
+- (NSMutableArray<TUTAlarmNotification *> *)alarms {
     let defaults = NSUserDefaults.standardUserDefaults;
     NSData *notificationsJsonData = [defaults objectForKey:ALARMS_KEY];
     NSMutableArray<TUTAlarmNotification *> * notifications = [NSMutableArray new];
@@ -96,17 +96,17 @@ NSString *const THEME = @"theme";
     return notifications;
 }
 
--(NSString *)lastProcessedNotificationId {
+- (NSString *)lastProcessedNotificationId {
     return [NSUserDefaults.standardUserDefaults stringForKey:LAST_PROCESSED_NOTIFICAION_ID_KEY];
 }
 
--(void)setLastProcessedNotificationId:(NSString *)lastProcessedNotificationId {
+- (void)setLastProcessedNotificationId:(NSString *)lastProcessedNotificationId {
     return [NSUserDefaults.standardUserDefaults setValue:lastProcessedNotificationId
                                                   forKey:LAST_PROCESSED_NOTIFICAION_ID_KEY
             ];
 }
 
--(NSDate *_Nullable)lastMissedNotificationCheckTime {
+- (NSDate *_Nullable)lastMissedNotificationCheckTime {
     return [NSUserDefaults.standardUserDefaults objectForKey:LAST_MISSED_NOTIFICATION_CHECK_TIME];
 }
 
@@ -114,14 +114,12 @@ NSString *const THEME = @"theme";
     [NSUserDefaults.standardUserDefaults setValue:lastMissedNotificationCheckTime forKey:LAST_MISSED_NOTIFICATION_CHECK_TIME];
 }
 
-- (void) storeTheme:(NSDictionary<NSString *, NSString *> *) theme {
+- (void)storeTheme:(NSDictionary<NSString *, NSString *> *)theme {
   [NSUserDefaults.standardUserDefaults setValue:theme forKey:THEME];
 }
 
-- (NSDictionary<NSString *, NSString *> *) theme {
+- (NSDictionary<NSString *, NSString *> *_Nullable)theme {
   return [NSUserDefaults.standardUserDefaults objectForKey:THEME];
 }
-
-
 
 @end

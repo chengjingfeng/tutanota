@@ -109,11 +109,6 @@ alarmManager:(TUTAlarmManager *)alarmManager
 	method_setImplementation(method, newImp);
 }
 
-- (void)applyTheme:(NSDictionary<NSString *,NSString *> *)theme {
-  let contentBg = [[UIColor alloc] initWithHex:theme[@"content_bg"]];
-  self.view.backgroundColor = contentBg;
-}
-
 - (void)viewDidLoad {
 	[super viewDidLoad];
 	[self.view addSubview:_webView];
@@ -123,7 +118,9 @@ alarmManager:(TUTAlarmManager *)alarmManager
 	[_webView.rightAnchor constraintEqualToAnchor:self.view.rightAnchor].active = YES;
 	[_webView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor].active = YES;
   let theme = [_userPreferences theme];
-  [self applyTheme:theme];
+  if (theme) {
+    [self applyTheme:theme];
+  }
   
     if ([self.appDelegate.alarmManager hasNotificationTTLExpired]) {
         [self.appDelegate.alarmManager resetStoredState];
@@ -199,10 +196,9 @@ alarmManager:(TUTAlarmManager *)alarmManager
 	} else if ([@"getMimeType" isEqualToString:type]) {
 		[_fileUtil getMimeTypeForPath:arguments[0] completion:sendResponseBlock];
 	} else if ([@"changeTheme" isEqualToString:type]) {
-   	[_userPreferences storeTheme:arguments[1]];
-    [self applyTheme: arguments[1]];
-    _darkTheme = [@"dark" isEqual:arguments[0]];
-    [self setNeedsStatusBarAppearanceUpdate];
+    NSDictionary<NSString *, NSString *> *theme = arguments[1];
+   	[_userPreferences storeTheme:theme];
+    [self applyTheme: theme];
     sendResponseBlock(NSNull.null, nil);
 	} else if ([@"aesEncryptFile" isEqualToString:type]) {
 		[_crypto aesEncryptFileWithKey:arguments[0] atPath:arguments[1] completion:sendResponseBlock];
@@ -509,6 +505,13 @@ decisionHandler:(void (^)(WKNavigationActionPolicy))decisionHandler {
             return UIStatusBarStyleDefault;
         }
     }
+}
+
+- (void)applyTheme:(NSDictionary<NSString *,NSString *> *_Nonnull)theme {
+  let contentBg = [[UIColor alloc] initWithHex:theme[@"content_bg"]];
+  self.view.backgroundColor = contentBg;
+  self.darkTheme = !contentBg.isLight;
+  [self setNeedsStatusBarAppearanceUpdate];
 }
 
 @end
