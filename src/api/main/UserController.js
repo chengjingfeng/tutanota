@@ -1,7 +1,7 @@
 // @flow
 import {AccountType, GroupType, OperationType} from "../common/TutanotaConstants"
 import {load, loadRoot, setup} from "./Entity"
-import {downcast, mapNullable, neverNull} from "../common/utils/Utils"
+import {downcast, neverNull} from "../common/utils/Utils"
 import type {Customer} from "../entities/sys/Customer"
 import {CustomerTypeRef} from "../entities/sys/Customer"
 import type {User} from "../entities/sys/User"
@@ -22,15 +22,16 @@ import {createCloseSessionServicePost} from "../entities/sys/CloseSessionService
 import {worker} from "./WorkerClient"
 import type {GroupMembership} from "../entities/sys/GroupMembership"
 import {NotFoundError} from "../common/error/RestError"
+import type {CustomerInfo} from "../entities/sys/CustomerInfo"
 import {CustomerInfoTypeRef} from "../entities/sys/CustomerInfo"
+import type {AccountingInfo} from "../entities/sys/AccountingInfo"
 import {AccountingInfoTypeRef} from "../entities/sys/AccountingInfo"
 import {locator} from "./MainLocator"
-import type {AccountingInfo} from "../entities/sys/AccountingInfo"
-import type {CustomerInfo} from "../entities/sys/CustomerInfo"
 import {isSameId} from "../common/utils/EntityUtils";
 import type {WhitelabelConfig} from "../entities/sys/WhitelabelConfig"
 import {WhitelabelConfigTypeRef} from "../entities/sys/WhitelabelConfig"
-import {first} from "../common/utils/ArrayUtils"
+import {filterMap, first} from "../common/utils/ArrayUtils"
+import type {DomainInfo} from "../entities/sys/DomainInfo"
 
 assertMainOrNode()
 
@@ -74,7 +75,7 @@ export interface IUserController {
 
 	deleteSession(sync: boolean): Promise<void>;
 
-	loadWhitelabelConfig(): Promise<?WhitelabelConfig>;
+	loadWhitelabelConfig(): Promise<?{whitelabelConfig: WhitelabelConfig, domainInfo: DomainInfo}>;
 }
 
 export class UserController implements IUserController {
@@ -263,15 +264,24 @@ export class UserController implements IUserController {
 		})
 	}
 
-	loadWhitelabelConfig(): Promise<?WhitelabelConfig> {
+	async loadWhitelabelConfig(): Promise<?{whitelabelConfig: WhitelabelConfig, domainInfo: DomainInfo}> {
 
 		// The model allows for multiple domainInfos to have whitelabel configs
 		// but in reality on the server only a single custom configuration is allowed
 		// therefore the result of the filtering all domainInfos with no whitelabelConfig
 		// can only be an array of length 0 or 1
-		return this.loadCustomerInfo()
-		           .then(customerInfo => first(customerInfo.domainInfos.map(domainInfo => domainInfo.whitelabelConfig).filter(Boolean)))
-		           .then(configId => mapNullable(configId, id => locator.entityClient.load(WhitelabelConfigTypeRef, id)))
+		const customerInfo = await this.loadCustomerInfo()
+		const domainInfoAndConfig = first(filterMap(customerInfo.domainInfos, (domainInfo => domainInfo.whitelabelConfig && {
+			domainInfo,
+			whitelabelConfig: domainInfo.whitelabelConfig
+		})))
+		if (domainInfoAndConfig) {
+			const whitelabelConfig = await locator.entityClient.load(WhitelabelConfigTypeRef, domainInfoAndConfig.whitelabelConfig)
+			return {
+				domainInfo: domainInfoAndConfig.domainInfo,
+				whitelabelConfig,
+			}
+		}
 	}
 }
 

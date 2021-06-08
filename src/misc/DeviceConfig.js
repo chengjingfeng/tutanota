@@ -25,11 +25,8 @@ export class DeviceConfig {
 	_defaultCalendarView: {[userId: Id]: ?CalendarViewTypeEnum};
 	_hiddenCalendars: {[userId: Id]: Id[]}
 	_signupToken: string;
-	_customTheme: Theme;
+	_customThemes: Array<Theme>;
 
-	/**
-	 * @param config The config to copy from
-	 */
 	constructor() {
 		this._version = ConfigVersion
 		this._load()
@@ -39,7 +36,7 @@ export class DeviceConfig {
 		this._credentials = []
 		let loadedConfigString = client.localStorage() ? localStorage.getItem(LocalStorageKey) : null
 		let loadedConfig = loadedConfigString != null ? this._parseConfig(loadedConfigString) : null
-		this._customTheme = (loadedConfig && loadedConfig._customTheme) ? loadedConfig._customTheme : {}
+		this._customThemes = loadedConfig && loadedConfig._customThemes || []
 		this._themeId = defaultThemeId
 		if (loadedConfig) {
 			if (loadedConfig._themeId) {
@@ -169,18 +166,6 @@ export class DeviceConfig {
 			this._themeId = theme
 			this._store()
 		}
-	}
-
-	setCustomTheme(theme: Theme) {
-		this._themeId = 'custom'
-		if (this._customTheme !== theme) {
-			this._customTheme = theme
-			this._store()
-		}
-	}
-
-	getCustomTheme(): ?Theme {
-		return this._customTheme
 	}
 
 	getDefaultCalendarView(userId: Id): ?CalendarViewTypeEnum {

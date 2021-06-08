@@ -20,6 +20,9 @@ import type {TranslationKey} from "../misc/LanguageViewModel"
 import {log} from "./DesktopLog"
 import {parseUrlOrNull, urlIsPrefix} from "./PathUtils"
 import type {LocalShortcutManager} from "./electron-localshortcut/LocalShortcut"
+import type {Theme} from "../gui/theme"
+import {DesktopConfig} from "./config/DesktopConfig"
+import {DesktopConfigKey} from "./config/ConfigKeys"
 
 const MINIMUM_WINDOW_SIZE: number = 350
 
@@ -52,6 +55,7 @@ export class ApplicationWindow {
 	_findingInPage: boolean = false;
 	_skipNextSearchBarBlur: boolean = false;
 	_lastSearchRequest: ?[string, {forward: boolean, matchCase: boolean}] = null;
+	_conf: DesktopConfig;
 	_lastSearchPromiseReject: (?string) => void;
 	_shortcuts: Array<LocalShortcut>;
 	id: number;
@@ -59,9 +63,10 @@ export class ApplicationWindow {
 	_localShortcut: LocalShortcutManager;
 
 	constructor(wm: WindowManager, desktophtml: string, icon: NativeImage, electron: $Exports<"electron">,
-	            localShortcutManager: LocalShortcutManager, spellcheck: boolean, dictUrl: string,
-	            noAutoLogin?: ?boolean
+	            localShortcutManager: LocalShortcutManager, conf: DesktopConfig,
+	            spellcheck: boolean, dictUrl: string, noAutoLogin?: ?boolean
 	) {
+		this._conf = conf
 		this._userInfo = null
 		this._ipc = wm.ipc
 		this._electron = electron
@@ -97,12 +102,21 @@ export class ApplicationWindow {
 			spellcheck,
 			dictUrl
 		})
-		this._browserWindow.loadURL(
-			noAutoLogin
-				? this._startFileURLString + "?noAutoLogin=true"
-				: this._startFileURLString
-		)
+		this._loadInitialUrl(noAutoLogin || false)
 		this._electron.Menu.setApplicationMenu(null)
+	}
+
+	async _loadInitialUrl(noAutoLogin: boolean) {
+		const initialUrl = await this._getInitialUrl(noAutoLogin)
+		this._browserWindow.loadURL(initialUrl)
+	}
+
+	async _getTheme(): Promise<?Theme> {
+		const selectedTheme = await this._conf.getVar(DesktopConfigKey.selectedTheme)
+		const theme = selectedTheme
+			? (await this._conf.getVar(DesktopConfigKey.customThemes)).find(t => t.themeId === selectedTheme)
+			: null
+		return theme
 	}
 
 	//expose browserwindow api
@@ -192,15 +206,20 @@ export class ApplicationWindow {
 		    .on('new-window', (e, newWindowUrl) => this._onNewWindow(e, newWindowUrl))
 		    .on('will-attach-webview', e => e.preventDefault())
 		    .on('did-start-navigation', (e, url, isInPlace) => {
+			    log.debug("navigation, isInPlace ", isInPlace, url)
 			    this._browserWindow.emit('did-start-navigation')
 			    if (!isInPlace) { // reload
 				    this._ipc.removeWindow(this.id)
 				    this._ipc.addWindow(this.id)
 			    }
-			    const newURL = this._rewriteURL(url, isInPlace)
-			    if (newURL !== url) {
+			    const newURLPromise = this._rewriteURL(url, isInPlace)
+			    if (newURLPromise) {
+			    	log.debug("loading cancelled, rewriting..., old url:", url)
 				    e.preventDefault()
-				    this._browserWindow.loadURL(newURL)
+				    newURLPromise.then((newUrl) => {
+				    	log.debug("new url is", newUrl)
+				    	this._browserWindow.loadURL(newUrl)
+				    })
 			    }
 		    })
 		    .on('before-input-event', (ev, input) => {
@@ -219,12 +238,13 @@ export class ApplicationWindow {
 			    // Wait for IPC to be initialized so that render process can process our messages.
 			    this._ipc.initialized(this.id).then(() => this._sendShortcutstoRender())
 		    })
-		    .on('did-fail-load', (evt, errorCode, errorDesc) => {
-			    log.debug("failed to load resource: ", errorDesc)
+		    .on('did-fail-load', (evt, errorCode, errorDesc, validatedURL) => {
+			    log.debug("failed to load resource: ", validatedURL, errorDesc)
 			    if (errorDesc === 'ERR_FILE_NOT_FOUND') {
-				    log.debug("redirecting to start page...")
-				    this._browserWindow.loadURL(this._startFileURLString + "?noAutoLogin=true")
-				        .then(() => log.debug("...redirected"))
+				    this._getInitialUrl(true).then(initialUrl => {
+					    log.debug("redirecting to start page...", initialUrl)
+					    return this._browserWindow.loadURL(initialUrl)
+				    }).then(() => log.debug("...redirected"))
 			    }
 		    })
 		    .on('remote-require', e => e.preventDefault())
@@ -336,15 +356,19 @@ export class ApplicationWindow {
 	}
 
 	// filesystem paths work differently than URLs
-	_rewriteURL(url: string, isInPlace: boolean): string {
+	_rewriteURL(url: string, isInPlace: boolean): ?Promise<string> {
 		const parsedUrl = parseUrlOrNull(url)
 		if (parsedUrl == null) {
-			return this._startFileURLString
+			return this._getInitialUrl(false)
 		}
 
 		if (!urlIsPrefix(this._startFileURL, parsedUrl)) {
-			return this._startFileURLString
+			return this._getInitialUrl(false)
 		}
+
+		// if (!isInPlace && parsedUrl.pathname !== "/") {
+		// 	return
+		// }
 
 		if (parsedUrl.pathname === this._startFileURL.pathname &&
 			parsedUrl.searchParams.get("r") === "/login?noAutoLogin=true" &&
@@ -352,9 +376,9 @@ export class ApplicationWindow {
 		) {
 			// after logout, don't try to login automatically.
 			// this fails if ?noAutoLogin=true is set directly from the web app for some reason
-			return this._startFileURLString + '?noAutoLogin=true'
+			return this._getInitialUrl(true)
 		}
-		return url
+		return null
 	}
 
 	findInPage([searchTerm, options]: [string, {forward: boolean, matchCase: boolean}]): Promise<FindInPageResult> {
@@ -465,5 +489,21 @@ export class ApplicationWindow {
 			rect: this._browserWindow.getBounds(),
 			scale: 1, // turns out we can't really trust wc.getZoomFactor
 		}
+	}
+
+	async _getInitialUrl(noAutoLogin: boolean): Promise<string> {
+		const theme = await this._getTheme()
+		const query = new URLSearchParams()
+		if (theme) {
+			query.append("theme", JSON.stringify(theme))
+		}
+
+		if (noAutoLogin) {
+			query.append("noAutoLogin", "true")
+		}
+		log.debug("url params", query)
+		return noAutoLogin
+			? this._startFileURLString + "?noAutoLogin=true"
+			: this._startFileURLString
 	}
 }

@@ -23,7 +23,7 @@ import {getExportDirectoryPath, makeMsgFile, writeFile} from "./DesktopFileExpor
 import {fileExists} from "./PathUtils"
 import path from "path"
 import {DesktopAlarmScheduler} from "./sse/DesktopAlarmScheduler"
-import type {IntegrationInfo} from "../native/main/SystemApp"
+import {ProgrammingError} from "../api/common/error/ProgrammingError"
 
 /**
  * node-side endpoint for communication between the renderer threads and the node thread
@@ -293,6 +293,27 @@ export class IPC {
 					await this._alarmScheduler.handleAlarmNotification(alarm)
 				}
 				return
+			}
+			case 'getSelectedTheme': {
+				return this._conf.getVar('selectedTheme')
+			}
+			case 'setSelectedTheme': {
+				log.debug("setSelectedTheme")
+				if (typeof args[0] !== "string") {
+					return Promise.reject(new ProgrammingError(`Argument is not a string for ${method}, ${typeof args[0]}`))
+				}
+				return this._conf.setVar('selectedTheme', args[0])
+			}
+			case 'getCustomThemes': {
+				const themes = await this._conf.getVar('customThemes')
+				return themes || []
+			}
+			case 'setCustomThemes': {
+				log.debug("setCustomThemes")
+				if (!Array.isArray(args[0])) {
+					return Promise.reject(new ProgrammingError("Argument is not an array"))
+				}
+				return this._conf.setVar('customThemes', args[0])
 			}
 			default:
 				return Promise.reject(new Error(`Invalid Method invocation: ${method}`))

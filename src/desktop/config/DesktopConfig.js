@@ -11,6 +11,7 @@ import {DesktopConfigEncKeyValues, DesktopConfigKeyValues} from "./ConfigKeys"
 import type {App} from "electron"
 import type {DeviceKeyProvider} from "../DeviceKeyProviderImpl"
 import {DesktopCryptoFacade} from "../DesktopCryptoFacade"
+import {ProgrammingError} from "../../api/common/error/ProgrammingError"
 
 
 type AllConfigKeysEnum = DesktopConfigKeyEnum | DesktopConfigEncKeyEnum
@@ -118,6 +119,8 @@ export class DesktopConfig {
 			desktopConfig[key] = value
 		} else if (DesktopConfigEncKeyValues.has(downcast(key))) {
 			await this._setEncryptedVar(key, value)
+		} else {
+			throw new ProgrammingError("Unknown config key: " + key)
 		}
 
 		await this._saveAndNotify(key, value, oldValue)

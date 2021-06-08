@@ -49,6 +49,7 @@ type PublicKey = {
 	publicExponent: number,
 }
 
+/** Requests from main web thread to worker */
 type WorkerRequestType = 'setup'
 	| 'generateSignupKeys'
 	| 'signup'
@@ -149,7 +150,7 @@ type WorkerRequestType = 'setup'
 	| 'getGiftCardInfo'
 	| 'createTemplateGroup'
 
-
+/** Requests from worker web thread to main web thread */
 type MainRequestType = 'execNative'
 	| 'entityEvent'
 	| 'error'
@@ -163,6 +164,7 @@ type MainRequestType = 'execNative'
 	| 'progressWorkDone'
 	| 'writeIndexerDebugLog'
 
+/** Requests from web to native */
 type NativeRequestType = 'init'
 	| 'generateRsaKey'
 	| 'rsaEncrypt'
@@ -218,7 +220,12 @@ type NativeRequestType = 'init'
 	| 'scheduleAlarms'
 	| 'getConfigValue'
 	| 'getIntegrationInfo'
+	| 'getSelectedTheme'
+	| 'setSelectedTheme'
+	| 'getCustomThemes'
+	| 'setCustomThemes'
 
+/** Requests from native to web */
 type JsRequestType = 'createMailEditor'
 	| 'handleBackPress'
 	| 'showAlertDialog'

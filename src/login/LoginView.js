@@ -87,9 +87,9 @@ export class LoginView {
 			this.permitAutoLogin = true
 		}
 
-		if (deviceConfig && deviceConfig.getTheme() === 'custom') {
-			themeManager.updateCustomTheme(deviceConfig.getCustomTheme())
-		}
+		// if (deviceConfig && deviceConfig.getTheme() === 'custom') {
+		// 	themeManager.updateCustomTheme(deviceConfig.getCustomTheme())
+		// }
 
 		let bottomMargin = 0
 		const keyboardListener = (keyboardSize) => {

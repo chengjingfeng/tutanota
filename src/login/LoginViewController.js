@@ -40,7 +40,9 @@ import {ButtonType} from "../gui/base/ButtonN"
 import {isNotificationCurrentlyActive, loadOutOfOfficeNotification} from "../api/main/OutOfOfficeNotificationUtils"
 import type {OutOfOfficeNotification} from "../api/entities/tutanota/OutOfOfficeNotification"
 import {showMoreStorageNeededOrderDialog} from "../misc/SubscriptionDialogs"
-import {theme, themeManager} from "../gui/theme"
+import {NativeThemeStorage, theme, themeManager} from "../gui/theme"
+import {remove} from "../api/common/utils/ArrayUtils"
+import type {Theme} from "../gui/theme"
 
 assertMainOrNode()
 
@@ -338,17 +340,37 @@ export class LoginViewController implements ILoginViewController {
 			             .then((wizard) => wizard.loadSignupWizard()))
 	}
 
-	_maybeSetCustomTheme(): Promise<*> {
-		return logins.getUserController().loadWhitelabelConfig().then(config => {
-			if (config && config.jsonTheme) {
-				themeManager.updateCustomTheme(JSON.parse(config.jsonTheme))
-			} else if (deviceConfig.getTheme() === 'custom') {
-				// When logging in to customer without whitelabel from a client that previously had a whitelabel accounts logged in
-				// then we reset the theme (this is probably a very uncommon case)
-				themeManager.setThemeId('light')
-				deviceConfig.setTheme('light')
-				m.redraw()
+	// TODO: do we need to await for any of this?
+	async _maybeSetCustomTheme(): Promise<*> {
+		const domainInfoAndConfig = await logins.getUserController().loadWhitelabelConfig()
+		if (domainInfoAndConfig && domainInfoAndConfig.whitelabelConfig.jsonTheme) {
+			const newTheme: Theme = JSON.parse(domainInfoAndConfig.whitelabelConfig.jsonTheme)
+			newTheme.themeId = domainInfoAndConfig.domainInfo.domain
+
+			// themeManager.updateCustomTheme(newTheme)
+			const storage = new NativeThemeStorage()
+			const customThemes = await storage.getCustomThemes()
+			const oldTheme = customThemes.find(t => t.themeId === domainInfoAndConfig.domainInfo.domain)
+			if (!oldTheme) {
+				// TODO: translate
+				Dialog.confirm(
+					() => "Whitelabel theming has been detected. Do you want to apply it now?"
+				).then(answer => {
+					if (answer) {
+						themeManager.setThemeId(newTheme.themeId)
+					}
+				})
+			} else {
+				remove(customThemes, oldTheme)
 			}
-		})
+			customThemes.push(newTheme)
+			await storage.setCustomThemes(customThemes)
+		} else if (deviceConfig.getTheme() === 'custom') {
+			// When logging in to customer without whitelabel from a client that previously had a whitelabel accounts logged in
+			// then we reset the theme (this is probably a very uncommon case)
+			themeManager.setThemeId('light')
+			deviceConfig.setTheme('light')
+			m.redraw()
+		}
 	}
 }

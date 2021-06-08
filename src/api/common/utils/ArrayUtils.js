@@ -382,3 +382,14 @@ export function partition<T>(array: Array<T>, predicate: T => boolean): [Array<T
 
 	return [left, right]
 }
+
+export function filterMap<T, R>(array: $ReadOnlyArray<T>, predicate: (T) => ?R): Array<R> {
+	const result = []
+	for (const item of array) {
+		const mapped = predicate(item)
+		if (mapped) {
+			result.push(mapped)
+		}
+	}
+	return result
+}
