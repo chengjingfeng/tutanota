@@ -294,6 +294,16 @@ export class IPC {
 				}
 				return
 			}
+			case 'reload': {
+				// TODO: response to this message will come to the web but it doesn't have a handler for it.
+				this.removeWindow(windowId)
+				const window = this._wm.get(windowId)
+				if (window) {
+					this.addWindow(windowId)
+					window.reload(args[0])
+				}
+				return
+			}
 			case 'getSelectedTheme': {
 				return this._conf.getVar('selectedTheme')
 			}

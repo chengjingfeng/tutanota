@@ -18,7 +18,7 @@ import path from "path"
 import {downcast, noOp} from "../api/common/utils/Utils"
 import type {TranslationKey} from "../misc/LanguageViewModel"
 import {log} from "./DesktopLog"
-import {parseUrlOrNull, urlIsPrefix} from "./PathUtils"
+import {parseUrlOrNull} from "./PathUtils"
 import type {LocalShortcutManager} from "./electron-localshortcut/LocalShortcut"
 import type {Theme} from "../gui/theme"
 import {DesktopConfig} from "./config/DesktopConfig"
@@ -43,6 +43,7 @@ type LocalShortcut = {
 	help: TranslationKey;
 }
 
+const TAG = "[ApplicationWindow]"
 
 export class ApplicationWindow {
 	+_ipc: IPC;
@@ -82,7 +83,6 @@ export class ApplicationWindow {
 			{key: Keys.F, meta: isMac, ctrl: !isMac, exec: () => this._openFindInPage(), help: "searchPage_label"},
 			{key: Keys.P, meta: isMac, ctrl: !isMac, exec: () => this._printMail(), help: "print_action"},
 			{key: Keys.F12, exec: () => this._toggleDevTools(), help: "toggleDevTools_action"},
-			{key: Keys.F5, exec: () => {this._browserWindow.loadURL(this._startFileURLString)}, help: "reloadPage_action"},
 			{key: Keys["0"], meta: isMac, ctrl: !isMac, exec: () => {this.setZoomFactor(1)}, help: "resetZoomFactor_action"}
 		].concat(isMac
 			? [{key: Keys.F, meta: true, ctrl: true, exec: () => this._toggleFullScreen(), help: "toggleFullScreen_action"},]
@@ -94,7 +94,7 @@ export class ApplicationWindow {
 				{key: Keys.N, ctrl: true, exec: () => {wm.newWindow(true)}, help: "openNewWindow_action"}
 			])
 
-		log.debug("startFile: ", this._startFileURLString)
+		log.debug(TAG, "startFile: ", this._startFileURLString)
 		const preloadPath = path.join(this._electron.app.getAppPath(), "./desktop/preload.js")
 		this._createBrowserWindow(wm, {
 			preloadPath,
@@ -205,22 +205,21 @@ export class ApplicationWindow {
 		this._browserWindow.webContents
 		    .on('new-window', (e, newWindowUrl) => this._onNewWindow(e, newWindowUrl))
 		    .on('will-attach-webview', e => e.preventDefault())
-		    .on('did-start-navigation', (e, url, isInPlace) => {
-			    log.debug("navigation, isInPlace ", isInPlace, url)
-			    this._browserWindow.emit('did-start-navigation')
-			    if (!isInPlace) { // reload
-				    this._ipc.removeWindow(this.id)
-				    this._ipc.addWindow(this.id)
-			    }
-			    const newURLPromise = this._rewriteURL(url, isInPlace)
-			    if (newURLPromise) {
-			    	log.debug("loading cancelled, rewriting..., old url:", url)
-				    e.preventDefault()
-				    newURLPromise.then((newUrl) => {
-				    	log.debug("new url is", newUrl)
-				    	this._browserWindow.loadURL(newUrl)
-				    })
-			    }
+		    .on('will-navigate', (e, url) => {
+			    // >Emitted when a user or the page wants to start navigation. It can happen when the window.location object is changed or
+			    // a user clicks a link in the page.
+			    // >This event will not emit when the navigation is started programmatically with APIs like webContents.loadURL and
+			    // webContents.back.
+			    // >It is also not emitted for in-page navigations, such as clicking anchor links or updating the window.location.hash.
+			    // https://www.electronjs.org/docs/api/web-contents#event-will-navigate
+			    //
+			    // Basically the only scenarios left for us are:
+			    // Clicking on a link without target="_blank"
+			    // Programmatically changing window.location to something else (we don't do this and it normally reloads the page)
+			    // In neither of those cases we want to navigate anywhere.
+			    log.debug(TAG, "will-navigate", url)
+
+			    e.preventDefault()
 		    })
 		    .on('before-input-event', (ev, input) => {
 			    if (this._lastSearchRequest && this._findingInPage && input.type === "keyDown" && input.key === "Enter") {
@@ -239,12 +238,12 @@ export class ApplicationWindow {
 			    this._ipc.initialized(this.id).then(() => this._sendShortcutstoRender())
 		    })
 		    .on('did-fail-load', (evt, errorCode, errorDesc, validatedURL) => {
-			    log.debug("failed to load resource: ", validatedURL, errorDesc)
+			    log.debug(TAG, "failed to load resource: ", validatedURL, errorDesc)
 			    if (errorDesc === 'ERR_FILE_NOT_FOUND') {
 				    this._getInitialUrl(true).then(initialUrl => {
-					    log.debug("redirecting to start page...", initialUrl)
+					    log.debug(TAG, "redirecting to start page...", initialUrl)
 					    return this._browserWindow.loadURL(initialUrl)
-				    }).then(() => log.debug("...redirected"))
+				    }).then(() => log.debug(TAG, "...redirected"))
 			    }
 		    })
 		    .on('remote-require', e => e.preventDefault())
@@ -261,6 +260,13 @@ export class ApplicationWindow {
 
 		// Shortcuts but be registered here, before "focus" or "blur" event fires, otherwise localShortcut fails
 		this._reRegisterShortcuts()
+	}
+
+	async reload(queryString: string) {
+		const url = new URL(this._startFileURLString + queryString)
+		await this._addThemeToUrl(url)
+		log.debug(TAG, "reload w/ url", url.toString())
+		await this._browserWindow.loadURL(url.toString())
 	}
 
 	_onNewWindow(e: WebContentsEvent, newWindowUrl: string) {
@@ -304,7 +310,7 @@ export class ApplicationWindow {
 		if (parsedUrl.pathname && !parsedUrl.pathname.endsWith("login")) {
 			this._browserWindow.webContents.goBack()
 		} else {
-			log.debug("Ignore back events on login page")
+			log.debug(TAG, "Ignore back events on login page")
 		}
 	}
 
@@ -353,32 +359,6 @@ export class ApplicationWindow {
 
 	getPath(): string {
 		return this._browserWindow.webContents.getURL().substring(this._startFileURLString.length)
-	}
-
-	// filesystem paths work differently than URLs
-	_rewriteURL(url: string, isInPlace: boolean): ?Promise<string> {
-		const parsedUrl = parseUrlOrNull(url)
-		if (parsedUrl == null) {
-			return this._getInitialUrl(false)
-		}
-
-		if (!urlIsPrefix(this._startFileURL, parsedUrl)) {
-			return this._getInitialUrl(false)
-		}
-
-		// if (!isInPlace && parsedUrl.pathname !== "/") {
-		// 	return
-		// }
-
-		if (parsedUrl.pathname === this._startFileURL.pathname &&
-			parsedUrl.searchParams.get("r") === "/login?noAutoLogin=true" &&
-			isInPlace
-		) {
-			// after logout, don't try to login automatically.
-			// this fails if ?noAutoLogin=true is set directly from the web app for some reason
-			return this._getInitialUrl(true)
-		}
-		return null
 	}
 
 	findInPage([searchTerm, options]: [string, {forward: boolean, matchCase: boolean}]): Promise<FindInPageResult> {
@@ -492,18 +472,19 @@ export class ApplicationWindow {
 	}
 
 	async _getInitialUrl(noAutoLogin: boolean): Promise<string> {
-		const theme = await this._getTheme()
-		const query = new URLSearchParams()
-		if (theme) {
-			query.append("theme", JSON.stringify(theme))
-		}
+		const url = new URL(this._startFileURLString)
+		await this._addThemeToUrl(url)
 
 		if (noAutoLogin) {
-			query.append("noAutoLogin", "true")
+			url.searchParams.append("noAutoLogin", "true")
 		}
-		log.debug("url params", query)
-		return noAutoLogin
-			? this._startFileURLString + "?noAutoLogin=true"
-			: this._startFileURLString
+		return url.toString()
+	}
+
+	async _addThemeToUrl(url: URL): Promise<void> {
+		const theme = await this._getTheme()
+		if (theme) {
+			url.searchParams.append("theme", JSON.stringify(theme))
+		}
 	}
 }

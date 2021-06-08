@@ -1,6 +1,6 @@
 // @flow
 import m from "mithril"
-import {assertMainOrNodeBoot, isApp, isIOSApp, Mode} from "../api/common/Env"
+import {assertMainOrNodeBoot, isAdminClient, isApp, isDesktop, isIOSApp, Mode} from "../api/common/Env"
 import {lang} from "./LanguageViewModel"
 import type {WorkerClient} from "../api/main/WorkerClient"
 import {client} from "./ClientDetector"
@@ -205,7 +205,7 @@ class WindowFacade {
 	}
 
 	reload(args: {[string]: any}) {
-		if (isApp()) {
+		if (isApp() || isDesktop() || isAdminClient()) {
 			if (!args.hasOwnProperty("noAutoLogin")) {
 				args.noAutoLogin = true
 			}
