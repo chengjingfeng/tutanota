@@ -1,12 +1,12 @@
 // @flow
 import {getLogoSvg} from "./base/icons/Logo"
-import {defaultThemeId} from "../misc/DeviceConfig"
+import {defaultThemeId, deviceConfig, DeviceConfig} from "../misc/DeviceConfig"
 import stream from "mithril/stream/stream.js"
-import {assertMainOrNodeBoot, isAdminClient, isApp, isDesktop} from "../api/common/Env"
+import {assertMainOrNodeBoot, isApp, isDesktop} from "../api/common/Env"
 import {downcast, typedValues} from "../api/common/utils/Utils"
 import m from "mithril"
 import typeof {Request} from "../api/common/WorkerProtocol"
-import {findAndRemove} from "../api/common/utils/ArrayUtils"
+import {filterMap, findAndRemove} from "../api/common/utils/ArrayUtils"
 
 assertMainOrNodeBoot()
 
@@ -312,10 +312,9 @@ class ThemeManager {
 	}
 
 	async _getTheme(themeId: ThemeId): Promise<Theme> {
-		// Make a defensive copy so that original theme definition is not modified.
-		const theme = Object.assign({}, themes[themeId])
-		if (theme) {
-			return theme
+		if (themes[themeId]) {
+			// Make a defensive copy so that original theme definition is not modified.
+			return Object.assign({}, themes[themeId])
 		} else {
 			const themes = await this.themeStorage.getThemes()
 			const customTheme = themes.find(t => t.themeId === themeId)
@@ -389,12 +388,19 @@ class ThemeManager {
 	getDefaultTheme(): Theme {
 		return Object.assign({}, themes[defaultThemeId])
 	}
+
+	shouldAllowChangingTheme(): boolean {
+		return typeof window.whitelabelCustomizations !== "undefined"
+	}
+
+	async getCustomThemes(): Promise<Array<ThemeId>> {
+		return filterMap(await this.themeStorage.getThemes(), (theme) => {
+			return !(theme.themeId in themes) ? theme.themeId : null
+		})
+	}
 }
 
 export class NativeThemeStorage implements ThemeStorage {
-	constructor() {
-	}
-
 	async getSelectedTheme(): Promise<?ThemeId> {
 		return this._callWith("getSelectedTheme", [])
 	}
@@ -419,7 +425,32 @@ export class NativeThemeStorage implements ThemeStorage {
 	}
 }
 
-const themeStorage = isApp() || isDesktop() ? new NativeThemeStorage() : (() => {throw new Error("TODO")})()
+class WebThemeStorage implements ThemeStorage {
+	+_deviceConfig: DeviceConfig;
+
+	constructor(deviceConfig: DeviceConfig) {
+		this._deviceConfig = deviceConfig
+	}
+
+	async getSelectedTheme(): Promise<?ThemeId> {
+		return this._deviceConfig.getTheme()
+	}
+
+	async setSelectedTheme(theme: ThemeId) {
+		return this._deviceConfig.setTheme(theme)
+	}
+
+	async getThemes(): Promise<Array<Theme>> {
+		// no-op
+		return []
+	}
+
+	async setThemes(themes: $ReadOnlyArray<Theme>) {
+		// no-op
+	}
+}
+
+const themeStorage = isApp() || isDesktop() ? new NativeThemeStorage() : new WebThemeStorage(deviceConfig)
 export const themeManager: ThemeManager = new ThemeManager(themeStorage)
 
 // ThemeManager.updateTheme updates the object in place, so this will always be current

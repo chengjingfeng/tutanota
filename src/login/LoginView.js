@@ -24,6 +24,7 @@ import {showUserError} from "../misc/ErrorHandlerImpl"
 import {LoginForm} from "./LoginForm"
 import {CredentialsSelector} from "./CredentialsSelector"
 import {themeManager} from "../gui/theme"
+import {createAsyncDropdown} from "../gui/base/DropdownN"
 
 assertMainOrNode()
 
@@ -86,10 +87,6 @@ export class LoginView {
 		} else {
 			this.permitAutoLogin = true
 		}
-
-		// if (deviceConfig && deviceConfig.getTheme() === 'custom') {
-		// 	themeManager.updateCustomTheme(deviceConfig.getCustomTheme())
-		// }
 
 		let bottomMargin = 0
 		const keyboardListener = (keyboardSize) => {
@@ -172,16 +169,7 @@ export class LoginView {
 						? m(ButtonN, {
 							label: "switchColorTheme_action",
 							type: ButtonType.Secondary,
-							click: () => {
-								switch (themeManager.themeId) {
-									case 'light':
-										return themeManager.setThemeId('dark')
-									case 'dark':
-										return themeManager.setThemeId('blue')
-									default:
-										return themeManager.setThemeId('light')
-								}
-							}
+							click: this.themeSwitchListener()
 						})
 						: null,
 					this._recoverLoginVisible()
@@ -197,6 +185,20 @@ export class LoginView {
 				])
 			])
 		]
+	}
+
+	themeSwitchListener(): clickHandler {
+		return createAsyncDropdown(async () => {
+			const defaultButtons = [
+				{label: "light_label", type: ButtonType.Dropdown, click: () => themeManager.setThemeId("light")},
+				{label: "dark_label", type: ButtonType.Dropdown, click: () => themeManager.setThemeId("dark")},
+				{label: "blue_label", type: ButtonType.Dropdown, click: () => themeManager.setThemeId("blue")},
+			]
+			const customButtons = (await themeManager.getCustomThemes()).map((themeId) => {
+				return {label: () => themeId, type: ButtonType.Dropdown, click: () => themeManager.setThemeId(themeId)}
+			})
+			return defaultButtons.concat(customButtons)
+		}, 300)
 	}
 
 	_signupLinkVisible(): boolean {
@@ -216,7 +218,7 @@ export class LoginView {
 	}
 
 	_switchThemeLinkVisible(): boolean {
-		return (themeManager.themeId !== 'custom')
+		return themeManager.shouldAllowChangingTheme()
 	}
 
 	_recoverLoginVisible(): boolean {
