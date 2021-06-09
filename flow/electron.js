@@ -42,7 +42,8 @@ declare module 'electron' {
 		openPath(fullPath: string): Promise<string>;
 	};
 
-	declare export class NativeImage {}
+	declare export class NativeImage {
+	}
 
 	declare export type Rectangle = {|
 		x: number,
@@ -440,6 +441,7 @@ declare module 'electron' {
 		getPosition(): number[];
 		setPosition(x: number, y: number): void;
 		setMenu(menu: Menu | null): void;
+		setBackgroundColor(backgroundColor: string): void;
 		webContents: WebContents;
 		id: number;
 

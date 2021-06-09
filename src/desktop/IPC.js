@@ -308,22 +308,25 @@ export class IPC {
 				return this._conf.getVar('selectedTheme')
 			}
 			case 'setSelectedTheme': {
-				log.debug("setSelectedTheme")
-				if (typeof args[0] !== "string") {
+				const newThemeId = args[0]
+				if (typeof newThemeId !== "string") {
 					return Promise.reject(new ProgrammingError(`Argument is not a string for ${method}, ${typeof args[0]}`))
 				}
-				return this._conf.setVar('selectedTheme', args[0])
+				await this._conf.setVar('selectedTheme', args[0])
+				for (const window of this._wm.getAll()) {
+					await window.updateBackgroundColor()
+				}
+				return
 			}
-			case 'getCustomThemes': {
-				const themes = await this._conf.getVar('customThemes')
+			case 'getThemes': {
+				const themes = await this._conf.getVar('themes')
 				return themes || []
 			}
-			case 'setCustomThemes': {
-				log.debug("setCustomThemes")
+			case 'setThemes': {
 				if (!Array.isArray(args[0])) {
 					return Promise.reject(new ProgrammingError("Argument is not an array"))
 				}
-				return this._conf.setVar('customThemes', args[0])
+				return this._conf.setVar('themes', args[0])
 			}
 			default:
 				return Promise.reject(new Error(`Invalid Method invocation: ${method}`))

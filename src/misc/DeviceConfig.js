@@ -25,7 +25,6 @@ export class DeviceConfig {
 	_defaultCalendarView: {[userId: Id]: ?CalendarViewTypeEnum};
 	_hiddenCalendars: {[userId: Id]: Id[]}
 	_signupToken: string;
-	_customThemes: Array<Theme>;
 
 	constructor() {
 		this._version = ConfigVersion
@@ -36,7 +35,6 @@ export class DeviceConfig {
 		this._credentials = []
 		let loadedConfigString = client.localStorage() ? localStorage.getItem(LocalStorageKey) : null
 		let loadedConfig = loadedConfigString != null ? this._parseConfig(loadedConfigString) : null
-		this._customThemes = loadedConfig && loadedConfig._customThemes || []
 		this._themeId = defaultThemeId
 		if (loadedConfig) {
 			if (loadedConfig._themeId) {

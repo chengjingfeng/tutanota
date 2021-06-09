@@ -108,15 +108,27 @@ export class ApplicationWindow {
 
 	async _loadInitialUrl(noAutoLogin: boolean) {
 		const initialUrl = await this._getInitialUrl(noAutoLogin)
+		const theme = await this._getTheme()
+		if (theme) {
+			this._browserWindow.setBackgroundColor(theme.content_bg)
+		}
 		this._browserWindow.loadURL(initialUrl)
 	}
 
 	async _getTheme(): Promise<?Theme> {
 		const selectedTheme = await this._conf.getVar(DesktopConfigKey.selectedTheme)
-		const theme = selectedTheme
-			? (await this._conf.getVar(DesktopConfigKey.customThemes)).find(t => t.themeId === selectedTheme)
+		return selectedTheme
+			? (await this._conf.getVar(DesktopConfigKey.themes) || []).find(t => t.themeId === selectedTheme)
 			: null
-		return theme
+	}
+
+	async updateBackgroundColor() {
+		const theme = await this._getTheme()
+		if (theme) {
+			// It currently does not work
+			// see https://github.com/electron/electron/issues/26842
+			this._browserWindow.setBackgroundColor(theme.content_bg)
+		}
 	}
 
 	//expose browserwindow api
@@ -136,7 +148,7 @@ export class ApplicationWindow {
 	focus: () => void = () => this._browserWindow.focus()
 	isFocused: (() => boolean) = () => this._browserWindow.isFocused()
 
-	show() {
+	async show() {
 		if (!this._browserWindow) {
 			return
 		}
@@ -265,7 +277,6 @@ export class ApplicationWindow {
 	async reload(queryString: string) {
 		const url = new URL(this._startFileURLString + queryString)
 		await this._addThemeToUrl(url)
-		log.debug(TAG, "reload w/ url", url.toString())
 		await this._browserWindow.loadURL(url.toString())
 	}
 

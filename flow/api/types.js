@@ -222,8 +222,8 @@ type NativeRequestType = 'init'
 	| 'getIntegrationInfo'
 	| 'getSelectedTheme'
 	| 'setSelectedTheme'
-	| 'getCustomThemes'
-	| 'setCustomThemes'
+	| 'getThemes'
+	| 'setThemes'
 
 /** Requests from native to web */
 type JsRequestType = 'createMailEditor'

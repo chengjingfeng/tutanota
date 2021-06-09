@@ -16,7 +16,7 @@ export const DesktopConfigKey = Object.freeze({
 	mailExportMode: "mailExportMode",
 	spellcheck: "spellcheck",
 	selectedTheme: "selectedTheme",
-	customThemes: "customThemes",
+	themes: "themes",
 })
 export const DesktopConfigKeyValues: $ReadOnlySet<DesktopConfigKeyEnum> = new Set(typedValues(DesktopConfigKey))
 export type DesktopConfigKeyEnum = $Values<typeof DesktopConfigKey>

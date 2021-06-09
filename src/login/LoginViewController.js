@@ -349,8 +349,8 @@ export class LoginViewController implements ILoginViewController {
 
 			// themeManager.updateCustomTheme(newTheme)
 			const storage = new NativeThemeStorage()
-			const customThemes = await storage.getCustomThemes()
-			const oldTheme = customThemes.find(t => t.themeId === domainInfoAndConfig.domainInfo.domain)
+			const themes = await storage.getThemes()
+			const oldTheme = themes.find(t => t.themeId === domainInfoAndConfig.domainInfo.domain)
 			if (!oldTheme) {
 				// TODO: translate
 				Dialog.confirm(
@@ -361,10 +361,10 @@ export class LoginViewController implements ILoginViewController {
 					}
 				})
 			} else {
-				remove(customThemes, oldTheme)
+				remove(themes, oldTheme)
 			}
-			customThemes.push(newTheme)
-			await storage.setCustomThemes(customThemes)
+			themes.push(newTheme)
+			await storage.setThemes(themes)
 		} else if (deviceConfig.getTheme() === 'custom') {
 			// When logging in to customer without whitelabel from a client that previously had a whitelabel accounts logged in
 			// then we reset the theme (this is probably a very uncommon case)
