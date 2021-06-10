@@ -93,29 +93,18 @@ public class MainActivity extends ComponentActivity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		Log.d(TAG, "App started");
-
-		SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-		String themeMapString = prefs.getString(THEME_OBJECT_PREF, null);
-		Map<String, String> themeMap;
-		if (themeMapString == null) {
-			themeMap = new HashMap<>();
-			themeMap.put("content_bg", colorToHex(Color.WHITE));
-			themeMap.put("header_bg", colorToHex(Color.WHITE));
-		} else {
-			try {
-				themeMap = jsonObjectToMap(new JSONObject(themeMapString));
-			} catch (JSONException e) {
-				throw new RuntimeException(e);
-			}
-		}
-		doChangeTheme(themeMap);
-
 		AndroidKeyStoreFacade keyStoreFacade = new AndroidKeyStoreFacade(this);
 		sseStorage = new SseStorage(AppDatabase.getDatabase(this, /*allowMainThreadAccess*/false),
 				keyStoreFacade);
 		AlarmNotificationsManager alarmNotificationsManager = new AlarmNotificationsManager(keyStoreFacade, sseStorage,
 				new Crypto(this), new SystemAlarmFacade(this), new LocalNotificationsFacade(this));
 		nativeImpl = new Native(this, sseStorage, alarmNotificationsManager);
+		String currentTheme = nativeImpl.themeStorage.getCurrentTheme();
+		if (currentTheme == null) {
+			currentTheme = "light";
+		}
+
+		doChangeTheme(currentTheme);
 
 		super.onCreate(savedInstanceState);
 
@@ -289,8 +278,8 @@ public class MainActivity extends ComponentActivity {
 		webView.saveState(outState);
 	}
 
-	public void changeTheme(Map<String, String> theme) {
-		runOnUiThread(() -> doChangeTheme(theme));
+	public void changeTheme(String themeId) {
+		runOnUiThread(() -> doChangeTheme(themeId));
 	}
 
 	@ColorInt
@@ -313,8 +302,15 @@ public class MainActivity extends ComponentActivity {
 		return Color.parseColor(color);
 	}
 
-	private void doChangeTheme(Map<String, String> theme) {
-		Log.d(TAG, "changeTheme: ");
+	private void doChangeTheme(String themeId) {
+		Log.d(TAG, "changeTheme: " + themeId);
+		Map<String, String> theme = this.nativeImpl.themeStorage.getTheme(themeId);
+		if (theme == null) {
+			theme = new HashMap<>();
+			theme.put("content_bg", colorToHex(Color.WHITE));
+			theme.put("header_bg", colorToHex(Color.WHITE));
+		}
+
 		@ColorInt
 		int backgroundColor = parseColor(Objects.requireNonNull(theme.get("content_bg")));
 		getWindow().setBackgroundDrawable(new ColorDrawable(backgroundColor));
@@ -339,10 +335,6 @@ public class MainActivity extends ComponentActivity {
 				: decorView.getSystemUiVisibility() | View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
 		decorView.setSystemUiVisibility(uiFlags);
 		getWindow().setStatusBarColor(statusBarColor);
-		PreferenceManager.getDefaultSharedPreferences(this)
-				.edit()
-				.putString(THEME_OBJECT_PREF, new JSONObject(theme).toString())
-				.apply();
 	}
 
 	public void askBatteryOptinmizationsIfNeeded() {

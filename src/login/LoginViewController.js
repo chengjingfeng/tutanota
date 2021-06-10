@@ -69,9 +69,10 @@ export class LoginViewController implements ILoginViewController {
 		if (isApp()) {
 			worker.initialized.then(() => {
 
-				themeManager.themeIdChangedStream.map((themeId) => {
-					import("../native/main/SystemApp").then(({changeColorTheme}) => changeColorTheme(themeId, theme))
-				})
+				// TODO
+				// themeManager.themeIdChangedStream.map((themeId) => {
+				// 	import("../native/main/SystemApp").then(({changeColorTheme}) => changeColorTheme(themeId, theme))
+				// })
 			})
 		}
 	}

@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 
@@ -31,13 +32,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import de.tutao.tutanota.alarms.AlarmNotification;
 import de.tutao.tutanota.alarms.AlarmNotificationsManager;
 import de.tutao.tutanota.push.LocalNotificationsFacade;
 import de.tutao.tutanota.push.SseStorage;
-
-import static de.tutao.tutanota.Utils.jsonObjectToMap;
 
 /**
  * Created by mpfau on 4/8/17.
@@ -54,6 +54,7 @@ public final class Native {
 	private final Map<String, DeferredObject<Object, Exception, Void>> queue = new HashMap<>();
 	private final MainActivity activity;
 	private final AlarmNotificationsManager alarmNotificationsManager;
+	public final ThemeStorage themeStorage;
 	private volatile DeferredObject<Void, Throwable, Void> webAppInitialized = new DeferredObject<>();
 
 
@@ -64,6 +65,7 @@ public final class Native {
 		files = new FileUtil(activity, new LocalNotificationsFacade(activity));
 		this.alarmNotificationsManager = alarmNotificationsManager;
 		this.sseStorage = sseStorage;
+		this.themeStorage = new ThemeStorage(activity);
 	}
 
 	public void setup() {
@@ -266,11 +268,26 @@ public final class Native {
 					promise.resolve(true);
 					break;
 				}
-				case "changeTheme":
-					String themeId = args.getString(0);
-					Map<String, String> theme = jsonObjectToMap(args.getJSONObject(1));
-					activity.changeTheme(theme);
+				case "getSelectedTheme": {
+					promise.resolve(this.themeStorage.getCurrentTheme());
 					break;
+				}
+				case "setSelectedTheme": {
+					String themeId = args.getString(0);
+					this.themeStorage.setCurrentTheme(themeId);
+					activity.changeTheme(themeId);
+					break;
+				}
+				case "getThemes": {
+					List<Map<String,String>> themesList = this.themeStorage.getThemes();
+					promise.resolve(new JSONArray(themesList));
+					break;
+				}
+				case "setThemes": {
+					JSONArray jsonThemes = args.getJSONArray(0);
+					this.themeStorage.setThemes(jsonThemes);
+					break;
+				}
 				case "saveBlob":
 					return files.saveBlob(args.getString(0), args.getString(1));
 				case "putFileIntoDownloads":
@@ -317,16 +334,6 @@ public final class Native {
 		}
 		return resolved;
 	}
-
-	private Uri getUriFromResource(int resourceId) {
-		return new Uri.Builder()
-				.scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
-				.authority(activity.getResources().getResourcePackageName(resourceId))
-				.appendPath(activity.getResources().getResourceTypeName(resourceId))
-				.appendPath(activity.getResources().getResourceEntryName(resourceId))
-				.build();
-	}
-
 
 	private boolean shareText(String string, @Nullable String title) {
 		Intent sendIntent = new Intent(Intent.ACTION_SEND);
