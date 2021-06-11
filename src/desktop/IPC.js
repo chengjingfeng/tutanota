@@ -24,28 +24,31 @@ import {fileExists} from "./PathUtils"
 import path from "path"
 import {DesktopAlarmScheduler} from "./sse/DesktopAlarmScheduler"
 import {ProgrammingError} from "../api/common/error/ProgrammingError"
+import {ThemeManager} from "./ThemeManager"
 
 /**
  * node-side endpoint for communication between the renderer threads and the node thread
  */
 export class IPC {
-	_conf: DesktopConfig;
-	_sse: DesktopSseClient;
-	_wm: WindowManager;
-	_notifier: DesktopNotifier;
-	_sock: Socketeer;
-	_alarmStorage: DesktopAlarmStorage;
-	_alarmScheduler: DesktopAlarmScheduler
-	_crypto: DesktopCryptoFacade;
-	_dl: DesktopDownloadManager;
+	+_conf: DesktopConfig;
+	+_sse: DesktopSseClient;
+	+_wm: WindowManager;
+	+_notifier: DesktopNotifier;
+	+_sock: Socketeer;
+	+_alarmStorage: DesktopAlarmStorage;
+	+_alarmScheduler: DesktopAlarmScheduler
+	+_crypto: DesktopCryptoFacade;
+	+_dl: DesktopDownloadManager;
+	+_updater: ?ElectronUpdater;
+	+_electron: $Exports<"electron">;
+	+_desktopUtils: DesktopUtils;
+	+_err: DesktopErrorHandler;
+	+_integrator: DesktopIntegrator;
+	+_themeManager: ThemeManager
+
 	_initialized: Array<DeferredObject<void>>;
 	_requestId: number = 0;
-	_queue: {[string]: Function};
-	_updater: ?ElectronUpdater;
-	_electron: $Exports<"electron">;
-	_desktopUtils: DesktopUtils;
-	_err: DesktopErrorHandler;
-	_integrator: DesktopIntegrator;
+	+_queue: {[string]: Function};
 
 	constructor(
 		conf: DesktopConfig,
@@ -61,7 +64,8 @@ export class IPC {
 		desktopUtils: DesktopUtils,
 		errorHandler: DesktopErrorHandler,
 		integrator: DesktopIntegrator,
-		alarmScheduler: DesktopAlarmScheduler
+		alarmScheduler: DesktopAlarmScheduler,
+		themeManager: ThemeManager,
 	) {
 		this._conf = conf
 		this._sse = sse
@@ -77,6 +81,7 @@ export class IPC {
 		this._err = errorHandler
 		this._integrator = integrator
 		this._alarmScheduler = alarmScheduler
+		this._themeManager = themeManager
 
 		if (!!this._updater) {
 			this._updater.setUpdateDownloadedListener(() => {
@@ -305,28 +310,30 @@ export class IPC {
 				return
 			}
 			case 'getSelectedTheme': {
-				return this._conf.getVar('selectedTheme')
+				return this._themeManager.getSelectedThemeId();
 			}
 			case 'setSelectedTheme': {
 				const newThemeId = args[0]
 				if (typeof newThemeId !== "string") {
 					return Promise.reject(new ProgrammingError(`Argument is not a string for ${method}, ${typeof args[0]}`))
 				}
-				await this._conf.setVar('selectedTheme', args[0])
+
+				await this._themeManager.setSelectedThemeId(newThemeId);
+
 				for (const window of this._wm.getAll()) {
 					await window.updateBackgroundColor()
 				}
 				return
 			}
 			case 'getThemes': {
-				const themes = await this._conf.getVar('themes')
-				return themes || []
+				return this._themeManager.getThemes()
 			}
 			case 'setThemes': {
-				if (!Array.isArray(args[0])) {
+				const themes = args[0]
+				if (!Array.isArray(themes)) {
 					return Promise.reject(new ProgrammingError("Argument is not an array"))
 				}
-				return this._conf.setVar('themes', args[0])
+				return this._themeManager.setThemes(themes)
 			}
 			default:
 				return Promise.reject(new Error(`Invalid Method invocation: ${method}`))

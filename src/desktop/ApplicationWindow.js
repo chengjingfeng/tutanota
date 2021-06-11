@@ -15,14 +15,12 @@ import {capitalizeFirstLetter} from "../api/common/utils/StringUtils.js"
 import {Keys} from "../api/common/TutanotaConstants"
 import type {Key} from "../misc/KeyManager"
 import path from "path"
-import {downcast, noOp} from "../api/common/utils/Utils"
+import {downcast, noOp, typedEntries} from "../api/common/utils/Utils"
 import type {TranslationKey} from "../misc/LanguageViewModel"
 import {log} from "./DesktopLog"
 import {parseUrlOrNull} from "./PathUtils"
 import type {LocalShortcutManager} from "./electron-localshortcut/LocalShortcut"
-import type {Theme} from "../gui/theme"
-import {DesktopConfig} from "./config/DesktopConfig"
-import {DesktopConfigKey} from "./config/ConfigKeys"
+import {ThemeManager} from "./ThemeManager"
 
 const MINIMUM_WINDOW_SIZE: number = 350
 
@@ -48,26 +46,27 @@ const TAG = "[ApplicationWindow]"
 export class ApplicationWindow {
 	+_ipc: IPC;
 	+_startFileURLString: string;
+	+_electron: $Exports<"electron">;
+	+_localShortcut: LocalShortcutManager;
+	+_themeManager: ThemeManager
+
 	+_startFileURL: URL
 	_browserWindow: BrowserWindow;
-
 	_userInfo: ?UserInfo;
 	_setBoundsTimeout: TimeoutID;
 	_findingInPage: boolean = false;
 	_skipNextSearchBarBlur: boolean = false;
 	_lastSearchRequest: ?[string, {forward: boolean, matchCase: boolean}] = null;
-	_conf: DesktopConfig;
 	_lastSearchPromiseReject: (?string) => void;
 	_shortcuts: Array<LocalShortcut>;
 	id: number;
-	_electron: $Exports<"electron">;
-	_localShortcut: LocalShortcutManager;
+
 
 	constructor(wm: WindowManager, desktophtml: string, icon: NativeImage, electron: $Exports<"electron">,
-	            localShortcutManager: LocalShortcutManager, conf: DesktopConfig,
+	            localShortcutManager: LocalShortcutManager, themeManager: ThemeManager,
 	            spellcheck: boolean, dictUrl: string, noAutoLogin?: ?boolean
 	) {
-		this._conf = conf
+		this._themeManager = themeManager
 		this._userInfo = null
 		this._ipc = wm.ipc
 		this._electron = electron
@@ -108,22 +107,12 @@ export class ApplicationWindow {
 
 	async _loadInitialUrl(noAutoLogin: boolean) {
 		const initialUrl = await this._getInitialUrl(noAutoLogin)
-		const theme = await this._getTheme()
-		if (theme) {
-			this._browserWindow.setBackgroundColor(theme.content_bg)
-		}
+		await this.updateBackgroundColor()
 		this._browserWindow.loadURL(initialUrl)
 	}
 
-	async _getTheme(): Promise<?Theme> {
-		const selectedTheme = await this._conf.getVar(DesktopConfigKey.selectedTheme)
-		return selectedTheme
-			? (await this._conf.getVar(DesktopConfigKey.themes) || []).find(t => t.themeId === selectedTheme)
-			: null
-	}
-
 	async updateBackgroundColor() {
-		const theme = await this._getTheme()
+		const theme = await this._themeManager.getCurrentThemeWithFallback()
 		if (theme) {
 			// It currently does not work
 			// see https://github.com/electron/electron/issues/26842
@@ -274,9 +263,12 @@ export class ApplicationWindow {
 		this._reRegisterShortcuts()
 	}
 
-	async reload(queryString: string) {
-		const url = new URL(this._startFileURLString + queryString)
+	async reload(queryParams: {[string]: string}) {
+		const url = new URL(this._startFileURLString)
 		await this._addThemeToUrl(url)
+		for (const [key, value] of typedEntries(queryParams)) {
+			url.searchParams.append(key, value)
+		}
 		await this._browserWindow.loadURL(url.toString())
 	}
 
@@ -493,7 +485,7 @@ export class ApplicationWindow {
 	}
 
 	async _addThemeToUrl(url: URL): Promise<void> {
-		const theme = await this._getTheme()
+		const theme = await this._themeManager.getCurrentThemeWithFallback()
 		if (theme) {
 			url.searchParams.append("theme", JSON.stringify(theme))
 		}
