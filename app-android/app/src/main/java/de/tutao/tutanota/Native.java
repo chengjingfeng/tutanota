@@ -2,12 +2,10 @@ package de.tutao.tutanota;
 
 import android.app.NotificationManager;
 import android.content.ClipData;
-import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.preference.PreferenceManager;
 import android.util.Log;
 import android.webkit.JavascriptInterface;
 
@@ -32,7 +30,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import de.tutao.tutanota.alarms.AlarmNotification;
 import de.tutao.tutanota.alarms.AlarmNotificationsManager;
@@ -175,7 +172,8 @@ public final class Native {
 					break;
 				case "reload":
 					webAppInitialized = new DeferredObject<>();
-					activity.loadMainPage(args.getString(0));
+					activity.reload(args.getString(0));
+					promise.resolve(null);
 					break;
 				case "initPushNotifications":
 					return initPushNotifications();
@@ -276,6 +274,7 @@ public final class Native {
 					String themeId = args.getString(0);
 					this.themeStorage.setCurrentTheme(themeId);
 					activity.changeTheme(themeId);
+					promise.resolve(null);
 					break;
 				}
 				case "getThemes": {
@@ -286,6 +285,7 @@ public final class Native {
 				case "setThemes": {
 					JSONArray jsonThemes = args.getJSONArray(0);
 					this.themeStorage.setThemes(jsonThemes);
+					promise.resolve(null);
 					break;
 				}
 				case "saveBlob":
@@ -300,6 +300,7 @@ public final class Native {
 					break;
 				case "scheduleAlarms":
 					scheduleAlarms(args.getJSONArray(0));
+					promise.resolve(null);
 					break;
 				default:
 					throw new Exception("unsupported method: " + method);

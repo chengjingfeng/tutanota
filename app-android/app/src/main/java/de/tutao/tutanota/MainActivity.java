@@ -18,12 +18,10 @@ import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.net.MailTo;
 import android.net.Uri;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.preference.PreferenceManager;
 import android.provider.Settings;
-import android.text.TextUtils;
 import android.util.Log;
 import android.view.ContextMenu;
 import android.view.View;
@@ -34,8 +32,8 @@ import android.webkit.WebViewClient;
 import android.widget.Toast;
 
 import androidx.annotation.ColorInt;
+import androidx.annotation.MainThread;
 import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
 import androidx.annotation.RequiresPermission;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.ComponentActivity;
@@ -48,12 +46,11 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.File;
-import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,7 +65,6 @@ import de.tutao.tutanota.push.SseStorage;
 
 import static de.tutao.tutanota.Utils.colorToHex;
 import static de.tutao.tutanota.Utils.isColorDark;
-import static de.tutao.tutanota.Utils.jsonObjectToMap;
 
 public class MainActivity extends ComponentActivity {
 
@@ -113,7 +109,6 @@ public class MainActivity extends ComponentActivity {
 		webView = new WebView(this);
 		webView.setBackgroundColor(Color.TRANSPARENT);
 		setContentView(webView);
-		final String appUrl = getUrl();
 		if (BuildConfig.DEBUG) {
 			WebView.setWebContentsDebuggingEnabled(true);
 		}
@@ -146,12 +141,6 @@ public class MainActivity extends ComponentActivity {
 		this.webView.setWebViewClient(new WebViewClient() {
 			@Override
 			public boolean shouldOverrideUrlLoading(WebView view, String url) {
-				if (url.startsWith(appUrl)) {
-					// Set JS interface on page reload
-					nativeImpl.setup();
-					return false;
-				}
-
 				Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
 				try {
 					startActivity(intent);
@@ -167,43 +156,17 @@ public class MainActivity extends ComponentActivity {
 		// Handle long click on links in the WebView
 		this.registerForContextMenu(this.webView);
 
-		List<String> queryParameters = new ArrayList<>();
+		String queryParameters = "";
 
 		// If opened from notifications, tell Web app to not login automatically, we will pass
 		// mailbox later when loaded (in handleIntent())
 		if (getIntent() != null
 				&& (OPEN_USER_MAILBOX_ACTION.equals(getIntent().getAction()) || OPEN_CALENDAR_ACTION.equals(getIntent().getAction()))) {
-			queryParameters.add("noAutoLogin=true");
+			queryParameters = "?noAutoLogin=true";
 		}
 
-		// If the old credentials are present in the file system, pass them as an URL parameter
-		final File oldCredentialsFile = new File(getFilesDir(), "config/tutanota.json");
-		if (oldCredentialsFile.exists()) {
-			new AsyncTask<Void, Void, String>() {
-				@Override
-				@Nullable
-				protected String doInBackground(Void... voids) {
-					try {
-						String result = Utils.base64ToBase64Url(
-								Utils.bytesToBase64(Utils.readFile(oldCredentialsFile)));
-						oldCredentialsFile.delete();
-						return result;
-					} catch (IOException e) {
-						return null;
-					}
-				}
 
-				@Override
-				protected void onPostExecute(@Nullable String s) {
-					if (s != null) {
-						queryParameters.add("migrateCredentials=" + s);
-					}
-					startWebApp(queryParameters);
-				}
-			}.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
-		} else {
-			startWebApp(queryParameters);
-		}
+		startWebApp(queryParameters);
 
 		IntentFilter filter = new IntentFilter(INVALIDATE_SSE_ACTION);
 		this.registerReceiver(new BroadcastReceiver() {
@@ -232,9 +195,9 @@ public class MainActivity extends ComponentActivity {
 		super.onStop();
 	}
 
-	private void startWebApp(List<String> queryParams) {
-		webView.loadUrl(getUrl() +
-				(queryParams.isEmpty() ? "" : "?" + TextUtils.join("&", queryParams)));
+	@MainThread
+	private void startWebApp(String parameters) {
+		webView.loadUrl(getInitialUrl(parameters));
 		nativeImpl.setup();
 	}
 
@@ -355,8 +318,28 @@ public class MainActivity extends ComponentActivity {
 	private void saveAskedBatteryOptimizations(SharedPreferences preferences) {
 		preferences.edit().putBoolean(ASKED_BATTERY_OPTIMIZTAIONS_PREF, true).apply();
 	}
+	private String getInitialUrl(String parameters) {
+		String themeId = this.nativeImpl.themeStorage.getCurrentTheme();
+		if (themeId != null) {
+			Map<String, String> theme = this.nativeImpl.themeStorage.getTheme(themeId);
+			String themeString = Objects.requireNonNull(JSONObject.wrap(theme)).toString();
+			if (parameters.isEmpty()) {
+				parameters += "?";
+			} else {
+				parameters += "&";
+			}
+			try {
+				parameters += ("theme=" + URLEncoder.encode(themeString, "UTF-8"));
+			} catch (UnsupportedEncodingException e) {
+				throw new RuntimeException(e);
+			}
+		}
+		// additional path information like app.html/login are not handled properly by the webview
+		// when loaded from local file system. so we are just adding parameters to the Url e.g. ../app.html?noAutoLogin=true.
+		return getBaseUrl() + parameters;
+	}
 
-	private String getUrl() {
+	private String getBaseUrl() {
 		return BuildConfig.RES_ADDRESS;
 	}
 
@@ -579,10 +562,8 @@ public class MainActivity extends ComponentActivity {
 		moveTaskToBack(false);
 	}
 
-	public void loadMainPage(String parameters) {
-		// additional path information like app.html/login are not handled properly by the webview
-		// when loaded from local file system. so we are just adding parameters to the Url e.g. ../app.html?noAutoLogin=true.
-		runOnUiThread(() -> this.webView.loadUrl(getUrl() + parameters));
+	public void reload(String parameters) {
+		runOnUiThread(() -> startWebApp(parameters));
 	}
 
 	@Override
@@ -596,7 +577,7 @@ public class MainActivity extends ComponentActivity {
 				if (link == null) {
 					return;
 				}
-				if (link.startsWith(getUrl())) {
+				if (link.startsWith(getBaseUrl())) {
 					return;
 				}
 				menu.setHeaderTitle(link);

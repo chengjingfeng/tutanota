@@ -68,7 +68,7 @@ public class ThemeStorage {
 				Log.e(TAG, "Could not parse theme", e);
 			}
 		}
-		getPrefs().getStringSet(THEMES_KEY, themeStrings);
+		getPrefs().edit().putStringSet(THEMES_KEY, themeStrings).apply();
 	}
 
 	@Nullable
