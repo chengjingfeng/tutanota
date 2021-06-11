@@ -204,14 +204,15 @@ class WindowFacade {
 		window.addEventListener("offline", listener)
 	}
 
-	reload(args: {[string]: any}) {
+	reload(args: {[string]: QueryValue}) {
 		if (isApp() || isDesktop() || isAdminClient()) {
 			if (!args.hasOwnProperty("noAutoLogin")) {
 				args.noAutoLogin = true
 			}
-			let newQueryString = m.buildQueryString(args)
+			// Convert all values to strings so that native has easier time dealing with it
+			const preparedArgs = Object.fromEntries(Object.entries(args).map(([k, v]) => [k, String(v)]))
 			import("../native/main/SystemApp").then(({reloadNative}) =>
-				reloadNative(newQueryString.length > 0 ? "?" + newQueryString : "")
+				reloadNative(preparedArgs)
 			)
 		} else {
 			window.location.reload();

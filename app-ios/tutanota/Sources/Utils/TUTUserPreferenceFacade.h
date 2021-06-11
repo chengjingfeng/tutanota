@@ -21,8 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)storeAlarms:(NSArray<TUTAlarmNotification *> *)alarmNotifications;
 - (NSMutableArray<TUTAlarmNotification *> *) alarms;
 - (void)clear;
-- (void)storeTheme:(NSDictionary<NSString *, NSString *> *)theme;
-- (NSDictionary<NSString *, NSString *> *_Nullable)theme;
+
 @property (nonatomic, nullable) NSString *lastProcessedNotificationId;
 @property (nonatomic, nullable) NSDate *lastMissedNotificationCheckTime;
 

@@ -16,7 +16,6 @@ NSString *const SSE_INFO_KEY = @"sseInfo";
 NSString *const ALARMS_KEY = @"repeatingAlarmNotification";
 NSString *const LAST_PROCESSED_NOTIFICAION_ID_KEY = @"lastProcessedNotificationId";
 NSString *const LAST_MISSED_NOTIFICATION_CHECK_TIME = @"lastMissedNotificationCheckTime";
-NSString *const THEME = @"theme"; 
 
 @implementation TUTUserPreferenceFacade
 
@@ -112,14 +111,6 @@ NSString *const THEME = @"theme";
 
 - (void)setLastMissedNotificationCheckTime:(NSDate *_Nullable)lastMissedNotificationCheckTime {
     [NSUserDefaults.standardUserDefaults setValue:lastMissedNotificationCheckTime forKey:LAST_MISSED_NOTIFICATION_CHECK_TIME];
-}
-
-- (void)storeTheme:(NSDictionary<NSString *, NSString *> *)theme {
-  [NSUserDefaults.standardUserDefaults setValue:theme forKey:THEME];
-}
-
-- (NSDictionary<NSString *, NSString *> *_Nullable)theme {
-  return [NSUserDefaults.standardUserDefaults objectForKey:THEME];
 }
 
 @end

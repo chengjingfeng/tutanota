@@ -197,6 +197,10 @@
 		3D9A1F4B22031B99002C2455 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3D9A1F0722031B99002C2455 /* Main.storyboard */; };
 		3DA047BF212C1BBE0062C36C /* CompatibilityTestData.json in Resources */ = {isa = PBXBuildFile; fileRef = 3DA047BE212C1BBD0062C36C /* CompatibilityTestData.json */; };
 		3DB9A20E22BA5C23004EA08F /* TUTUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 3DB9A20D22BA5C23004EA08F /* TUTUtils.m */; };
+		3DC299FA267358AF00E1E79F /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC299F9267358AF00E1E79F /* ThemeManager.swift */; };
+		3DC299FB267358AF00E1E79F /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC299F9267358AF00E1E79F /* ThemeManager.swift */; };
+		3DC299FD2673668000E1E79F /* QueryUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC299FC2673668000E1E79F /* QueryUtils.swift */; };
+		3DC299FE2673668000E1E79F /* QueryUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3DC299FC2673668000E1E79F /* QueryUtils.swift */; };
 		3DD4A08820F8C6240086EB36 /* TUTAppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 3DD4A08720F8C6240086EB36 /* TUTAppDelegate.m */; settings = {COMPILER_FLAGS = "-Itutanota/include"; }; };
 		3DD4A08B20F8C6240086EB36 /* TUTViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 3DD4A08A20F8C6240086EB36 /* TUTViewController.m */; settings = {COMPILER_FLAGS = "-Itutanota/include"; }; };
 		3DD4A09020F8C6260086EB36 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3DD4A08F20F8C6260086EB36 /* Assets.xcassets */; };
@@ -341,6 +345,8 @@
 		3DA047BE212C1BBD0062C36C /* CompatibilityTestData.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = CompatibilityTestData.json; sourceTree = "<group>"; };
 		3DB9A20C22BA5C23004EA08F /* TUTUtils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TUTUtils.h; sourceTree = "<group>"; };
 		3DB9A20D22BA5C23004EA08F /* TUTUtils.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TUTUtils.m; sourceTree = "<group>"; };
+		3DC299F9267358AF00E1E79F /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		3DC299FC2673668000E1E79F /* QueryUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QueryUtils.swift; sourceTree = "<group>"; };
 		3DD4A08320F8C6240086EB36 /* tutanota.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = tutanota.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3DD4A08620F8C6240086EB36 /* TUTAppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = TUTAppDelegate.h; sourceTree = "<group>"; };
 		3DD4A08720F8C6240086EB36 /* TUTAppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = TUTAppDelegate.m; sourceTree = "<group>"; };
@@ -439,6 +445,7 @@
 				3DD4A08A20F8C6240086EB36 /* TUTViewController.m */,
 				3DD6D08722AAAE9800C0E312 /* TUTAlarmManager.h */,
 				3DD6D08822AAAE9800C0E312 /* TUTAlarmManager.m */,
+				3DC299F9267358AF00E1E79F /* ThemeManager.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -494,6 +501,7 @@
 				3D2DE2C623FC387700FFB95B /* AsyncBlockOperation.h */,
 				3D2DE2C723FC387700FFB95B /* AsyncBlockOperation.m */,
 				3DE1E44426666F0A0018C9DE /* UIColor+utils.swift */,
+				3DC299FC2673668000E1E79F /* QueryUtils.swift */,
 			);
 			path = Utils;
 			sourceTree = "<group>";
@@ -1492,7 +1500,9 @@
 				3D378F002536F79A0001F1F3 /* TUTUtils.m in Sources */,
 				3D378F012536F79A0001F1F3 /* TUTErrorFactory.m in Sources */,
 				3D378F022536F79A0001F1F3 /* TUTEncodingConverter.m in Sources */,
+				3DC299FE2673668000E1E79F /* QueryUtils.swift in Sources */,
 				3D378F032536F79A0001F1F3 /* TUTAes128Facade.m in Sources */,
+				3DC299FB267358AF00E1E79F /* ThemeManager.swift in Sources */,
 				3D378F042536F79A0001F1F3 /* TUTFileUtil.m in Sources */,
 				3D378F052536F79A0001F1F3 /* TUTSubKeys.m in Sources */,
 				3D378F062536F79A0001F1F3 /* TUTContactsSource.m in Sources */,
@@ -1529,7 +1539,9 @@
 				3DB9A20E22BA5C23004EA08F /* TUTUtils.m in Sources */,
 				3D74536721089F4800B16F2E /* TUTErrorFactory.m in Sources */,
 				3D891F0D2105B12F0031E528 /* TUTEncodingConverter.m in Sources */,
+				3DC299FD2673668000E1E79F /* QueryUtils.swift in Sources */,
 				3D891F0E2105B12F0031E528 /* TUTAes128Facade.m in Sources */,
+				3DC299FA267358AF00E1E79F /* ThemeManager.swift in Sources */,
 				3D891F092105B12F0031E528 /* TUTFileUtil.m in Sources */,
 				3DE7B3442135855F003415BE /* TUTSubKeys.m in Sources */,
 				3D74536F2108A1FD00B16F2E /* TUTContactsSource.m in Sources */,
