@@ -40,9 +40,8 @@ import {ButtonType} from "../gui/base/ButtonN"
 import {isNotificationCurrentlyActive, loadOutOfOfficeNotification} from "../api/main/OutOfOfficeNotificationUtils"
 import type {OutOfOfficeNotification} from "../api/entities/tutanota/OutOfOfficeNotification"
 import {showMoreStorageNeededOrderDialog} from "../misc/SubscriptionDialogs"
-import {NativeThemeStorage, theme, themeManager} from "../gui/theme"
-import {remove} from "../api/common/utils/ArrayUtils"
 import type {Theme} from "../gui/theme"
+import {themeManager} from "../gui/theme"
 
 assertMainOrNode()
 
@@ -65,16 +64,6 @@ export class LoginViewController implements ILoginViewController {
 	constructor(view: LoginView) {
 		this.view = view;
 		this._loginPromise = Promise.resolve()
-
-		if (isApp()) {
-			worker.initialized.then(() => {
-
-				// TODO
-				// themeManager.themeIdChangedStream.map((themeId) => {
-				// 	import("../native/main/SystemApp").then(({changeColorTheme}) => changeColorTheme(themeId, theme))
-				// })
-			})
-		}
 	}
 
 	autologin(credentials: Credentials): void {
@@ -341,17 +330,16 @@ export class LoginViewController implements ILoginViewController {
 			             .then((wizard) => wizard.loadSignupWizard()))
 	}
 
-	// TODO: do we need to await for any of this?
 	async _maybeSetCustomTheme(): Promise<*> {
 		const domainInfoAndConfig = await logins.getUserController().loadWhitelabelConfig()
 		if (domainInfoAndConfig && domainInfoAndConfig.whitelabelConfig.jsonTheme) {
 			const newTheme: Theme = JSON.parse(domainInfoAndConfig.whitelabelConfig.jsonTheme)
 			newTheme.themeId = domainInfoAndConfig.domainInfo.domain
 
-			// themeManager.updateCustomTheme(newTheme)
-			const storage = new NativeThemeStorage()
-			const themes = await storage.getThemes()
-			const oldTheme = themes.find(t => t.themeId === domainInfoAndConfig.domainInfo.domain)
+			const oldThemes = await themeManager.getCustomThemes()
+			await themeManager.updateSavedThemeDefinition(newTheme)
+
+			const oldTheme = oldThemes.includes(domainInfoAndConfig.domainInfo.domain)
 			if (!oldTheme) {
 				// TODO: translate
 				Dialog.confirm(
@@ -361,17 +349,7 @@ export class LoginViewController implements ILoginViewController {
 						themeManager.setThemeId(newTheme.themeId)
 					}
 				})
-			} else {
-				remove(themes, oldTheme)
 			}
-			themes.push(newTheme)
-			await storage.setThemes(themes)
-		} else if (deviceConfig.getTheme() === 'custom') {
-			// When logging in to customer without whitelabel from a client that previously had a whitelabel accounts logged in
-			// then we reset the theme (this is probably a very uncommon case)
-			themeManager.setThemeId('light')
-			deviceConfig.setTheme('light')
-			m.redraw()
 		}
 	}
 }
