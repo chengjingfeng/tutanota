@@ -51,7 +51,7 @@ public final class Native {
 	private final Map<String, DeferredObject<Object, Exception, Void>> queue = new HashMap<>();
 	private final MainActivity activity;
 	private final AlarmNotificationsManager alarmNotificationsManager;
-	public final ThemeStorage themeStorage;
+	public final ThemeManager themeManager;
 	private volatile DeferredObject<Void, Throwable, Void> webAppInitialized = new DeferredObject<>();
 
 
@@ -62,7 +62,7 @@ public final class Native {
 		files = new FileUtil(activity, new LocalNotificationsFacade(activity));
 		this.alarmNotificationsManager = alarmNotificationsManager;
 		this.sseStorage = sseStorage;
-		this.themeStorage = new ThemeStorage(activity);
+		this.themeManager = new ThemeManager(activity);
 	}
 
 	public void setup() {
@@ -172,7 +172,7 @@ public final class Native {
 					break;
 				case "reload":
 					webAppInitialized = new DeferredObject<>();
-					activity.reload(args.getString(0));
+					activity.reload(Utils.jsonObjectToMap(args.getJSONObject(0)));
 					promise.resolve(null);
 					break;
 				case "initPushNotifications":
@@ -267,24 +267,24 @@ public final class Native {
 					break;
 				}
 				case "getSelectedTheme": {
-					promise.resolve(this.themeStorage.getCurrentTheme());
+					promise.resolve(this.themeManager.getSelectedThemeId());
 					break;
 				}
 				case "setSelectedTheme": {
 					String themeId = args.getString(0);
-					this.themeStorage.setCurrentTheme(themeId);
-					activity.changeTheme(themeId);
+					this.themeManager.setSelectedThemeId(themeId);
+					activity.applyTheme();
 					promise.resolve(null);
 					break;
 				}
 				case "getThemes": {
-					List<Map<String,String>> themesList = this.themeStorage.getThemes();
+					List<Map<String,String>> themesList = this.themeManager.getThemes();
 					promise.resolve(new JSONArray(themesList));
 					break;
 				}
 				case "setThemes": {
 					JSONArray jsonThemes = args.getJSONArray(0);
-					this.themeStorage.setThemes(jsonThemes);
+					this.themeManager.setThemes(jsonThemes);
 					promise.resolve(null);
 					break;
 				}

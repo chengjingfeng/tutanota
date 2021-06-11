@@ -63,7 +63,6 @@ import de.tutao.tutanota.push.LocalNotificationsFacade;
 import de.tutao.tutanota.push.PushNotificationService;
 import de.tutao.tutanota.push.SseStorage;
 
-import static de.tutao.tutanota.Utils.colorToHex;
 import static de.tutao.tutanota.Utils.isColorDark;
 
 public class MainActivity extends ComponentActivity {
@@ -95,12 +94,8 @@ public class MainActivity extends ComponentActivity {
 		AlarmNotificationsManager alarmNotificationsManager = new AlarmNotificationsManager(keyStoreFacade, sseStorage,
 				new Crypto(this), new SystemAlarmFacade(this), new LocalNotificationsFacade(this));
 		nativeImpl = new Native(this, sseStorage, alarmNotificationsManager);
-		String currentTheme = nativeImpl.themeStorage.getCurrentTheme();
-		if (currentTheme == null) {
-			currentTheme = "light";
-		}
 
-		doChangeTheme(currentTheme);
+		doApplyTheme(this.nativeImpl.themeManager.getCurrentThemeWithFallback());
 
 		super.onCreate(savedInstanceState);
 
@@ -156,15 +151,13 @@ public class MainActivity extends ComponentActivity {
 		// Handle long click on links in the WebView
 		this.registerForContextMenu(this.webView);
 
-		String queryParameters = "";
-
+		Map<String, String> queryParameters = new HashMap<>();
 		// If opened from notifications, tell Web app to not login automatically, we will pass
 		// mailbox later when loaded (in handleIntent())
 		if (getIntent() != null
 				&& (OPEN_USER_MAILBOX_ACTION.equals(getIntent().getAction()) || OPEN_CALENDAR_ACTION.equals(getIntent().getAction()))) {
-			queryParameters = "?noAutoLogin=true";
+			queryParameters.put("noAutoLogin", "true");
 		}
-
 
 		startWebApp(queryParameters);
 
@@ -196,7 +189,7 @@ public class MainActivity extends ComponentActivity {
 	}
 
 	@MainThread
-	private void startWebApp(String parameters) {
+	private void startWebApp(Map<String, String> parameters) {
 		webView.loadUrl(getInitialUrl(parameters));
 		nativeImpl.setup();
 	}
@@ -241,8 +234,9 @@ public class MainActivity extends ComponentActivity {
 		webView.saveState(outState);
 	}
 
-	public void changeTheme(String themeId) {
-		runOnUiThread(() -> doChangeTheme(themeId));
+	public void applyTheme() {
+		Map<String, String> theme = nativeImpl.themeManager.getCurrentThemeWithFallback();
+		runOnUiThread(() -> doApplyTheme(theme));
 	}
 
 	@ColorInt
@@ -265,14 +259,8 @@ public class MainActivity extends ComponentActivity {
 		return Color.parseColor(color);
 	}
 
-	private void doChangeTheme(String themeId) {
-		Log.d(TAG, "changeTheme: " + themeId);
-		Map<String, String> theme = this.nativeImpl.themeStorage.getTheme(themeId);
-		if (theme == null) {
-			theme = new HashMap<>();
-			theme.put("content_bg", colorToHex(Color.WHITE));
-			theme.put("header_bg", colorToHex(Color.WHITE));
-		}
+	private void doApplyTheme(@NonNull Map<String, String> theme) {
+		Log.d(TAG, "changeTheme: " + theme.get("themeId"));
 
 		@ColorInt
 		int backgroundColor = parseColor(Objects.requireNonNull(theme.get("content_bg")));
@@ -318,25 +306,32 @@ public class MainActivity extends ComponentActivity {
 	private void saveAskedBatteryOptimizations(SharedPreferences preferences) {
 		preferences.edit().putBoolean(ASKED_BATTERY_OPTIMIZTAIONS_PREF, true).apply();
 	}
-	private String getInitialUrl(String parameters) {
-		String themeId = this.nativeImpl.themeStorage.getCurrentTheme();
-		if (themeId != null) {
-			Map<String, String> theme = this.nativeImpl.themeStorage.getTheme(themeId);
-			String themeString = Objects.requireNonNull(JSONObject.wrap(theme)).toString();
-			if (parameters.isEmpty()) {
-				parameters += "?";
-			} else {
-				parameters += "&";
-			}
+
+	private String getInitialUrl(Map<String, String> parameters) {
+		Map<String, String> theme = this.nativeImpl.themeManager.getCurrentTheme();
+		if (theme != null) {
+			parameters.put("theme", Objects.requireNonNull(JSONObject.wrap(theme)).toString());
+		}
+
+		StringBuilder queryBuilder = new StringBuilder();
+		for (Map.Entry<String, String> entry : parameters.entrySet()) {
 			try {
-				parameters += ("theme=" + URLEncoder.encode(themeString, "UTF-8"));
+				String escapedValue = URLEncoder.encode(entry.getValue(), "UTF-8");
+				if (queryBuilder.length() == 0) {
+					queryBuilder.append("?");
+				} else {
+					queryBuilder.append("&");
+				}
+				queryBuilder.append(entry.getKey());
+				queryBuilder.append('=');
+				queryBuilder.append(escapedValue);
 			} catch (UnsupportedEncodingException e) {
 				throw new RuntimeException(e);
 			}
 		}
 		// additional path information like app.html/login are not handled properly by the webview
 		// when loaded from local file system. so we are just adding parameters to the Url e.g. ../app.html?noAutoLogin=true.
-		return getBaseUrl() + parameters;
+		return getBaseUrl() + queryBuilder.toString();
 	}
 
 	private String getBaseUrl() {
@@ -562,7 +557,7 @@ public class MainActivity extends ComponentActivity {
 		moveTaskToBack(false);
 	}
 
-	public void reload(String parameters) {
+	public void reload(Map<String, String> parameters) {
 		runOnUiThread(() -> startWebApp(parameters));
 	}
 

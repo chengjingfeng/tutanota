@@ -23,23 +23,23 @@ import java.util.Set;
 
 import static de.tutao.tutanota.Utils.jsonObjectToMap;
 
-public class ThemeStorage {
+public class ThemeManager {
 	private static final String CURRENT_THEME_KEY = "theme";
 	private static final String THEMES_KEY = "themes";
 	private static final String TAG = "ThemeStorage";
 
 	private final Context context;
 
-	public ThemeStorage(Context context) {
+	public ThemeManager(Context context) {
 		this.context = context;
 	}
 
 	@Nullable
-	String getCurrentTheme() {
+	String getSelectedThemeId() {
 		return getPrefs().getString(CURRENT_THEME_KEY, null);
 	}
 
-	void setCurrentTheme(@NonNull String themeId) {
+	void setSelectedThemeId(@NonNull String themeId) {
 		getPrefs().edit().putString(CURRENT_THEME_KEY, themeId).apply();
 	}
 
@@ -72,7 +72,12 @@ public class ThemeStorage {
 	}
 
 	@Nullable
-	Map<String, String> getTheme(@NonNull String themeId) {
+	Map<String, String> getCurrentTheme() {
+		String themeId = this.getSelectedThemeId();
+		if (themeId == null) {
+			themeId = "light";
+		}
+
 		List<Map<String, String>> themes = this.getThemes();
 		for (Map<String, String> theme : themes) {
 			if (Objects.equals(themeId, theme.get("themeId"))) {
@@ -80,6 +85,17 @@ public class ThemeStorage {
 			}
 		}
 		return null;
+	}
+
+	@NonNull
+	Map<String, String> getCurrentThemeWithFallback() {
+		Map<String, String> theme = this.getCurrentTheme();
+		if (theme == null) {
+			theme = new HashMap<>();
+			theme.put("content_bg", "#ffffff");
+			theme.put("header_bg", "#ffffff");
+		}
+		return theme;
 	}
 
 	private SharedPreferences getPrefs() {
